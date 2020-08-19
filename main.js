@@ -14,7 +14,7 @@ console.log(`Server branding: '${config.NAME}' (${config.STATUS_NAME}) at ${conf
 console.log('New user registration:', config.ALLOW_REGISTER ? 'allowed' : 'disabled');
 // console.log(`Data storage: ${config.DATA}`);
 
-const db = require('./db')
+const db = require('./datastore')
 
 // db.init is async. We don't really need to wait,
 // but the messages come out in order then, so lets.

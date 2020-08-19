@@ -2,7 +2,7 @@ const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 
-const db = require('./db');
+const db = require('./datastore');
 const config = require('./config');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
