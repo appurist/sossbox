@@ -13,15 +13,27 @@ let STATUS_NAME = 'sossbox'
 
 ///////////////////////////////////////////////////////////////////////////
 
-// Sites should not modify any of this below.
+// Sites should not modify any of this code below.
+if (process.env.JWT_SECRET) {
+  JWT_SECRET = process.env.JWT_SECRET.trim();
+}
+if (process.env.NAME) {
+  NAME = process.env.NAME.trim();
+}
+if (process.env.DOMAIN) {
+  DOMAIN = process.env.DOMAIN.trim();
+}
 if (process.env.PORT) {
   PORT = process.env.PORT.trim();
+}
+if (process.env.DATA) {
+  DATA = process.env.DATA.trim();
 }
 if (process.env.HOST) {
   HOST = process.env.HOST.trim();
 }
-if (process.env.JWT_SECRET) {
-  JWT_SECRET = process.env.JWT_SECRET.trim();
+if (process.env.STATUS_NAME) {
+  STATUS_NAME = process.env.STATUS_NAME.trim();
 }
 
 module.exports = { JWT_SECRET, NAME, DOMAIN, DATA, PORT, HOST, STATUS_NAME };
