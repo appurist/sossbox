@@ -10,7 +10,7 @@ if (config.error) {
 } 
 
 // Dump the config to the startup messages.
-console.log(`Server branding: '${config.NAME}' (${config.STATUS_NAME}) at ${config.DOMAIN}`);
+console.log(`Server branding: '${config.NAME}' (${config.ID}) at ${config.DOMAIN}`);
 console.log('New user registration:', config.ALLOW_REGISTER ? 'allowed' : 'disabled');
 // console.log(`Data storage: ${config.DATA}`);
 

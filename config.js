@@ -10,7 +10,8 @@ let DATA = './data'
 
 // Site installation CAN update these to something else if the effects are understood.
 let HOST = '0.0.0.0'
-let STATUS_NAME = 'sossbox'
+let ID = 'sossbox'
+
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -36,8 +37,8 @@ if (process.env.DATA) {
 if (process.env.HOST) {
   HOST = process.env.HOST.trim();
 }
-if (process.env.STATUS_NAME) {
-  STATUS_NAME = process.env.STATUS_NAME.trim();
+if (process.env.ID) {
+  ID = process.env.ID.trim();
 }
 
-module.exports = { JWT_SECRET, ALLOW_REGISTER, NAME, DOMAIN, DATA, PORT, HOST, STATUS_NAME };
+module.exports = { JWT_SECRET, ALLOW_REGISTER, NAME, DOMAIN, DATA, PORT, HOST, ID };

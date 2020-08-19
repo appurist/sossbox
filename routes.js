@@ -47,7 +47,7 @@ function init(fastifyArg) {
   // Declare a route
   fastifyArg.get('/status', (request, reply) => {
     db.fileGet('.', 'motd.md').then(motd => {
-      let response = { name: config.STATUS_NAME, version: packageVersion, motd };
+      let response = { name: config.ID, version: packageVersion, motd };
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     })
   })
@@ -168,7 +168,7 @@ function init(fastifyArg) {
       }
       db.fileGet('.', 'motd.md').then(motd => {
         let response = Object.assign({ }, userRec.user)
-        response.token = jwt.sign(userRec.user, config.JWT_SECRET, { issuer: config.STATUS_NAME})
+        response.token = jwt.sign(userRec.user, config.JWT_SECRET, { issuer: config.ID})
         // The token does not include more than basic user.
         // e.g. The token does not include itself, or the MOTD message.
         response.motd = motd;
