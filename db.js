@@ -1,15 +1,16 @@
-const uuid = require('uuid-random');
 const path = require('path');
 const fsPromises = require("fs/promises");
-const { JWT_SECRET } = require('./config');
+const config = require('./config');
 
 const USERMETA = 'meta.json';
 let base = './data'
 
+let debug_level = 0;
+
 async function init(newBase) {
   // check for parameter override, otherwise environment override
   if (!newBase) {
-    newBase = process.env['AD_DATA'];
+    newBase = config.DATA;
   }
   // got something?
   if (newBase) {
@@ -26,7 +27,7 @@ async function init(newBase) {
 
 /////////////////// File system operations ///////////////////////
 async function folderCreate(folder) {
-  console.log("mkdir:", folder);
+  if (debug_level) console.log("mkdir:", folder);
   if (!folder) {  // check if user trying to go outside their own subfolder
     console.error('Error (mkdir): Invalid folder create.')
     return false;
@@ -41,7 +42,7 @@ async function folderCreate(folder) {
 }
 
 async function folderDelete(folder) {
-  console.log("rmdir:", folder);
+  if (debug_level) console.log("rmdir:", folder);
   if (!folder) {  // check if user trying to go outside their own subfolder
     console.error('Error (rmdir): Invalid folder delete.')
     return false;
@@ -52,7 +53,7 @@ async function folderDelete(folder) {
 }
 
 async function folderGet(folder) {
-  console.log("readdir:", folder);
+  if (debug_level) console.log("readdir:", folder);
   if (!folder) {  // check if user trying to go outside their own subfolder
     console.error('Error (readdir): Invalid folder read.')
     return false;
@@ -64,7 +65,7 @@ async function folderGet(folder) {
 }
 
 async function fileGet(folder, name) {
-  console.log("readFile:", folder, name);
+  if (debug_level) console.log("readFile:", folder, name);
   if (!(folder && name)) {  // check if user trying to go outside their own subfolder
     console.error('Error (readFile): Invalid read.')
     return false;
@@ -77,7 +78,7 @@ async function fileGet(folder, name) {
 
 // file
 async function filePut(folder, fn, payload) {
-  console.log("writeFile:", folder, fn);
+  if (debug_level) console.log("writeFile:", folder, fn);
   if (!(folder && fn)) {  // check if user trying to go outside their own subfolder
     console.error('Error (writeFile): Invalid write.')
     return false;
@@ -104,7 +105,7 @@ async function filePut(folder, fn, payload) {
 }
 
 async function fileDelete(folder, name) {
-  console.log("unlink:", folder, name);
+  if (debug_level) console.log("unlink:", folder, name);
   if (!(folder && name)) {  // check if user trying to go outside their own subfolder
     console.error('Error (unlink): Invalid delete.')
     return false;
@@ -117,7 +118,7 @@ async function fileDelete(folder, name) {
 
 // this method uses a file system link to associate a login ID with a user UID (folder)
 async function userLink(name, who) {
-  console.log("userLink:", name, who);
+  if (debug_level) console.log("userLink:", name, who);
   if (!(name && who)) {  // check if user trying to go outside their own subfolder
     console.error('Error (userLink): Invalid request.')
     return false;
@@ -129,7 +130,7 @@ async function userLink(name, who) {
 }
 // Needed for user delete and user login ID changes. Not to be confused with a user delete.
 async function userUnlink(name) {
-  console.log("userUnlink:", name);
+  if (debug_level) console.log("userUnlink:", name);
   if (!name) {  // check if user trying to go outside their own subfolder
     console.error('Error (userUnlink): Invalid request.')
     return false;
