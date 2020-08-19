@@ -3,7 +3,6 @@ const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 
 const db = require('./db');
-const { JWT_SECRET } = require('./config');
 const config = require('./config');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
@@ -42,7 +41,7 @@ function handleError(err, request, reply) {
 }
 
 let packageVersion = require('./package.json').version;
-console.log(config.NAME+' '+packageVersion);
+console.log('SOSSBox '+packageVersion);
 
 function init(fastifyArg) {
   // Declare a route
@@ -155,7 +154,7 @@ function init(fastifyArg) {
   });
 
   fastifyArg.post('/login', (request, reply) => {
-    if (!JWT_SECRET) {
+    if (!config.JWT_SECRET) {
       console.error("JWT_SECRET is not set.");
       return false;
     }
@@ -164,14 +163,16 @@ function init(fastifyArg) {
     .then(userRec => {
       let testhash = md5(request.body.password);
       if (testhash !== userRec.credentials.hash) {
-        reply.code(401).send('Authentication failed.');
+        reply.code(401).send('Authentication failed, invalid password.');
         return;
       }
       db.fileGet('.', 'motd.md').then(motd => {
         let response = Object.assign({ }, userRec.user, { motd })
-        response.token = jwt.sign(response, JWT_SECRET, { issuer: config.STATUS_NAME})
+        response.token = jwt.sign(response, config.JWT_SECRET, { issuer: config.STATUS_NAME})
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
       })
+    }).catch((err) => {
+      reply.code(401).send('Authentication failed.');
     });
   });
 
@@ -181,7 +182,7 @@ function init(fastifyArg) {
   });
 
   function verifyToken(token) {
-    let result = jwt.verify(token, JWT_SECRET, function(err, decoded) {
+    let result = jwt.verify(token, config.JWT_SECRET, function(err, decoded) {
       if (err) {
         console.error(err);
         return null;
