@@ -167,8 +167,9 @@ function init(fastifyArg) {
         return;
       }
       db.fileGet('.', 'motd.md').then(motd => {
-        let response = Object.assign({ }, userRec.user, { motd })
-        response.token = jwt.sign(response, config.JWT_SECRET, { issuer: config.STATUS_NAME})
+        let user = Object.assign({ }, userRec.user)
+        let response = Object.assign({ }, { user, motd })
+        response.token = jwt.sign(user, config.JWT_SECRET, { issuer: config.STATUS_NAME})
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
       })
     }).catch((err) => {
