@@ -167,9 +167,11 @@ function init(fastifyArg) {
         return;
       }
       db.fileGet('.', 'motd.md').then(motd => {
-        let user = Object.assign({ }, userRec.user)
-        let response = Object.assign({ }, { user, motd })
-        response.token = jwt.sign(user, config.JWT_SECRET, { issuer: config.STATUS_NAME})
+        let response = Object.assign({ }, userRec.user)
+        response.token = jwt.sign(userRec.user, config.JWT_SECRET, { issuer: config.STATUS_NAME})
+        // The token does not include more than basic user.
+        // e.g. The token does not include itself, or the MOTD message.
+        response.motd = motd;
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
       })
     }).catch((err) => {
