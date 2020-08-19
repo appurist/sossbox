@@ -1,5 +1,6 @@
 // Site installation MUST update these to something unique to that site.
 let JWT_SECRET = 'sossbox_secret'
+let ALLOW_REGISTER = true
 
 // Site installation SHOULD probably update these to something appropriate for that site.
 let NAME = 'SOSSBox Server'
@@ -16,6 +17,9 @@ let STATUS_NAME = 'sossbox'
 // Sites should not modify any of this code below.
 if (process.env.JWT_SECRET) {
   JWT_SECRET = process.env.JWT_SECRET.trim();
+}
+if (process.env.ALLOW_REGISTER) {
+  ALLOW_REGISTER = process.env.ALLOW_REGISTER.trim() === 'true';
 }
 if (process.env.NAME) {
   NAME = process.env.NAME.trim();
@@ -36,4 +40,4 @@ if (process.env.STATUS_NAME) {
   STATUS_NAME = process.env.STATUS_NAME.trim();
 }
 
-module.exports = { JWT_SECRET, NAME, DOMAIN, DATA, PORT, HOST, STATUS_NAME };
+module.exports = { JWT_SECRET, ALLOW_REGISTER, NAME, DOMAIN, DATA, PORT, HOST, STATUS_NAME };

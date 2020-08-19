@@ -121,18 +121,24 @@ function init(fastifyArg) {
     });
   })
 
+  // This is user add (a.k.a. signup or registration)
   fastifyArg.post('/users', (request, reply) => {
     let uid = uuid();
     let credentials = { hash: md5(request.body.password) };
     let user = Object.assign({ uid }, request.body);
     delete user.password; // don't store the original password. especially not in plain text
 
+    if (!config.ALLOW_REGISTER) {
+      reply.code(401).send('New user registration is disabled.');
+      return false;
+    }
+
     // Next, create user with key from tenant db.
     // Returns the server key (.secret member is the db token).
     db.userCreate(credentials, user)
     .then(response => {
       let user = response.user;
-      reply.type(JSON_TYPE).send(JSON.stringify(user));    
+      reply.type(JSON_TYPE).send(JSON.stringify(user));
     }).catch(err => { 
       handleError(err, request, reply);
     });
