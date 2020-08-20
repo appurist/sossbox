@@ -25,7 +25,34 @@ async function init(newBase) {
   return base;
 }
 
-/////////////////// File system operations ///////////////////////
+async function pathStat(folder, fn) {
+  try {
+    let pn = path.isAbsolute(folder) ? path.join(folder, fn) : path.join(base, folder, fn);
+    return await fsPromises.stat(pn);
+  } catch (e) {
+    return null;
+  }
+}
+async function folderExists(folder) {
+  try {
+    let pn = path.isAbsolute(folder) ? folder : path.join(base, folder);
+    let stat=await fsPromises.stat(pn);
+    return stat.isDirectory();
+  } catch (e) {
+    return false;
+  }
+}
+async function fileExists(folder, fn) {
+  try {
+    let pn = path.isAbsolute(folder) ? path.join(folder, fn) : path.join(base, folder, fn);
+    let stat=await fsPromises.stat(pn);
+    return stat.isFile();
+  } catch (e) {
+    return false;
+  }
+}
+
+/////////////////// Folder operations ///////////////////////
 async function folderCreate(folder) {
   if (debug_level) console.log("mkdir:", folder);
   if (!folder) {  // check if user trying to go outside their own subfolder
@@ -256,9 +283,9 @@ async function userByLogin(name) {
 }
 
 module.exports = {
-  init,
+  init, pathStat, folderExists, fileExists,
   folderCreate, folderGet, folderDelete,
-  filePut, fileGet, fileDelete,
+  fileGet, filePut, fileDelete,
 
   userDocCreate, userListDocs, userDocDelete,
   userDocGet, userDocReplace, userDocUpdate,
