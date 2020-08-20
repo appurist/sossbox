@@ -2,7 +2,7 @@ const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 
-const db = require('./datastore');
+const datastore = require('./datastore');
 const config = require('./config');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
@@ -42,11 +42,12 @@ function handleError(err, request, reply) {
 
 let packageVersion = require('./package.json').version;
 console.log('SOSSBox '+packageVersion);
+console.log('Node.js '+process.version);
 
 function init(fastifyArg) {
   // Declare a route
   fastifyArg.get('/status', (request, reply) => {
-    db.fileGet('.', 'motd.md').then(motd => {
+    datastore.fileGet('.', 'motd.md').then(motd => {
       let response = { name: config.ID, version: packageVersion, motd };
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     })
@@ -75,7 +76,7 @@ function init(fastifyArg) {
   })  
 
   fastifyArg.get('/users', (request, reply) => {
-    db.folderGet('users').then((response) => {
+    datastore.folderGet('users').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
       } else {
@@ -113,7 +114,7 @@ function init(fastifyArg) {
       reply.code(401).send('Not authorized.');
       return;
     }
-    db.userByLogin(login).then((response) => {
+    datastore.userByLogin(login).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response.user));    
     }).catch((err) => { 
       handleError(err, request, reply);
@@ -132,9 +133,9 @@ function init(fastifyArg) {
       return false;
     }
 
-    // Next, create user with key from tenant db.
-    // Returns the server key (.secret member is the db token).
-    db.userCreate(credentials, user)
+    // Next, create user with key from tenant datastore.
+    // Returns the server key (.secret member is the datastore token).
+    datastore.userCreate(credentials, user)
     .then(response => {
       let user = response.user;
       reply.type(JSON_TYPE).send(JSON.stringify(user));
@@ -145,7 +146,7 @@ function init(fastifyArg) {
 
   fastifyArg.delete('/users/:uid', (request, reply) => {
     let uid = request.params.uid;
-    db.userDelete(uid).then((response) => {
+    datastore.userDelete(uid).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
       return;
     }).catch((err) => { 
@@ -159,14 +160,14 @@ function init(fastifyArg) {
       return false;
     }
 
-    db.userByLogin(request.body.login)
+    datastore.userByLogin(request.body.login)
     .then(userRec => {
       let testhash = md5(request.body.password);
       if (testhash !== userRec.credentials.hash) {
         reply.code(401).send('Authentication failed, invalid password.');
         return;
       }
-      db.fileGet('.', 'motd.md').then(motd => {
+      datastore.fileGet('.', 'motd.md').then(motd => {
         let response = Object.assign({ }, userRec.user)
         response.token = jwt.sign(userRec.user, config.JWT_SECRET, { issuer: config.ID})
         // The token does not include more than basic user.
@@ -216,7 +217,7 @@ function init(fastifyArg) {
       return;
     }
 
-    db.userListDocs(user.uid, 'projects').then((response) => {
+    datastore.userListDocs(user.uid, 'projects').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));
       } else {
@@ -233,7 +234,7 @@ function init(fastifyArg) {
     }
 
     let id = request.params.id;
-    db.userDocGet(user.uid, 'projects', id).then(response => {
+    datastore.userDocGet(user.uid, 'projects', id).then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }).catch((err) => { 
       handleError(err, request, reply);
@@ -251,9 +252,9 @@ function init(fastifyArg) {
     let uid = request.body.uid || uuid();
     let proj = Object.assign({ uid }, request.body);
 
-    // Next, create user with key from tenant db.
-    // Returns the server key (.secret member is the db token).
-    db.userDocCreate(user.uid, 'projects', uid, proj)
+    // Next, create user with key from tenant datastore.
+    // Returns the server key (.secret member is the datastore token).
+    datastore.userDocCreate(user.uid, 'projects', uid, proj)
     .then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
     }).catch(err => { 
@@ -269,7 +270,7 @@ function init(fastifyArg) {
     }
 
     let uid = request.params.uid;
-    db.userDocDelete(user.uid, 'projects', uid).then((response) => {
+    datastore.userDocDelete(user.uid, 'projects', uid).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
       return;
     }).catch((err) => { 
