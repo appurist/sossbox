@@ -2,7 +2,7 @@ const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 
-const datastore = require('./datastore');
+const storage = require('./storage');
 const config = require('./config');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
@@ -44,20 +44,21 @@ let packageVersion = require('./package.json').version;
 console.log('SOSSBox '+packageVersion);
 console.log('Node.js '+process.version);
 
-function init(fastifyArg) {
+function initRoutes(siteCfg) {
+  let listener = siteCfg.listener;
   // Declare a route
-  fastifyArg.get('/status', (request, reply) => {
-    datastore.fileGet('.', 'motd.md').then(motd => {
-      let response = { name: config.ID, version: packageVersion, motd };
+  listener.get('/status', (request, reply) => {
+    storage.fileGet(siteCfg.folder, 'motd.md').then(motd => {
+      let response = { name: config.id, version: packageVersion, motd };
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     })
   })
-  fastifyArg.get('/', (request, reply) => {
-    reply.send('You have reached the API server for '+config.DOMAIN)
+  listener.get('/', (request, reply) => {
+    reply.send('You have reached the API server for '+siteCfg.domain)
   })
 
   // support the websocket
-  fastifyArg.get('/updates', { websocket: true }, (connection, req) => {
+  listener.get('/updates', { websocket: true }, (connection, req) => {
     console.log("socket connected.");
     connection.socket.on('message', (message) => {
       if (message.startsWith('user,')) {
@@ -75,8 +76,8 @@ function init(fastifyArg) {
     })
   })  
 
-  fastifyArg.get('/users', (request, reply) => {
-    datastore.folderGet('users').then((response) => {
+  listener.get('/users', (request, reply) => {
+    storage.folderGet('users').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
       } else {
@@ -89,7 +90,7 @@ function init(fastifyArg) {
 
 
   // Same as /users/:myID but with an implicit ID
-  fastifyArg.put('/profile', async (request, reply) => {
+  listener.put('/profile', async (request, reply) => {
     let user = getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -103,7 +104,7 @@ function init(fastifyArg) {
     reply.type(JSON_TYPE).send(JSON.stringify(meta));    
   })
 
-  fastifyArg.get('/users/:loginName', (request, reply) => {
+  listener.get('/users/:loginName', (request, reply) => {
     let user = getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -114,7 +115,7 @@ function init(fastifyArg) {
       reply.code(401).send('Not authorized.');
       return;
     }
-    datastore.userByLogin(login).then((response) => {
+    storage.userByLogin(login).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response.user));    
     }).catch((err) => { 
       handleError(err, request, reply);
@@ -122,20 +123,20 @@ function init(fastifyArg) {
   })
 
   // This is user add (a.k.a. signup or registration)
-  fastifyArg.post('/users', (request, reply) => {
+  listener.post('/users', (request, reply) => {
     let uid = uuid();
     let credentials = { hash: md5(request.body.password) };
     let user = Object.assign({ uid }, request.body);
     delete user.password; // don't store the original password. especially not in plain text
 
-    if (!config.ALLOW_REGISTER) {
+    if (!siteCfg.register) {
       reply.code(401).send('New user registration is disabled.');
       return false;
     }
 
-    // Next, create user with key from tenant datastore.
-    // Returns the server key (.secret member is the datastore token).
-    datastore.userCreate(credentials, user)
+    // Next, create user with key from tenant storage.
+    // Returns the server key (.secret member is the storage token).
+    storage.userCreate(credentials, user)
     .then(response => {
       let user = response.user;
       reply.type(JSON_TYPE).send(JSON.stringify(user));
@@ -144,9 +145,9 @@ function init(fastifyArg) {
     });
   })
 
-  fastifyArg.delete('/users/:uid', (request, reply) => {
+  listener.delete('/users/:uid', (request, reply) => {
     let uid = request.params.uid;
-    datastore.userDelete(uid).then((response) => {
+    storage.userDelete(uid).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
       return;
     }).catch((err) => { 
@@ -154,22 +155,22 @@ function init(fastifyArg) {
     });
   });
 
-  fastifyArg.post('/login', (request, reply) => {
-    if (!config.JWT_SECRET) {
-      console.error("JWT_SECRET is not set.");
+  listener.post('/login', (request, reply) => {
+    if (!siteCfg.secret) {
+      console.error(`${siteCfg.id}: secret is not set.`);
       return false;
     }
 
-    datastore.userByLogin(request.body.login)
+    storage.userByLogin(request.body.login)
     .then(userRec => {
       let testhash = md5(request.body.password);
       if (testhash !== userRec.credentials.hash) {
         reply.code(401).send('Authentication failed, invalid password.');
         return;
       }
-      datastore.fileGet('.', 'motd.md').then(motd => {
+      storage.fileGet('.', 'motd.md').then(motd => {
         let response = Object.assign({ }, userRec.user)
-        response.token = jwt.sign(userRec.user, config.JWT_SECRET, { issuer: config.ID})
+        response.token = jwt.sign(userRec.user, siteCfg.secret, { issuer: siteCfg.id})
         // The token does not include more than basic user.
         // e.g. The token does not include itself, or the MOTD message.
         response.motd = motd;
@@ -180,13 +181,13 @@ function init(fastifyArg) {
     });
   });
 
-  fastifyArg.post('/logout', (request, reply) => {
+  listener.post('/logout', (request, reply) => {
     let response = { message: 'You have been logged out.', result: 'OK' };
     reply.type(JSON_TYPE).send(JSON.stringify(response));    
   });
 
   function verifyToken(token) {
-    let result = jwt.verify(token, config.JWT_SECRET, function(err, decoded) {
+    let result = jwt.verify(token, siteCfg.secret, function(err, decoded) {
       if (err) {
         console.error(err);
         return null;
@@ -210,14 +211,14 @@ function init(fastifyArg) {
     return (words[0] === 'Bearer') ? verifyToken (words[1]) : false;
   }
 
-  fastifyArg.get('/projects', async (request, reply) => {
+  listener.get('/projects', async (request, reply) => {
     let user = getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
       return;
     }
 
-    datastore.userListDocs(user.uid, 'projects').then((response) => {
+    storage.userListDocs(user.uid, 'projects').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));
       } else {
@@ -226,7 +227,7 @@ function init(fastifyArg) {
     });
   })
 
-  fastifyArg.get('/projects/:id', async (request, reply) => {
+  listener.get('/projects/:id', async (request, reply) => {
     let user = await getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -234,14 +235,14 @@ function init(fastifyArg) {
     }
 
     let id = request.params.id;
-    datastore.userDocGet(user.uid, 'projects', id).then(response => {
+    storage.userDocGet(user.uid, 'projects', id).then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }).catch((err) => { 
       handleError(err, request, reply);
     });
   })
 
-  fastifyArg.post('/projects', async (request, reply) => {
+  listener.post('/projects', async (request, reply) => {
     let user = await getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -252,9 +253,9 @@ function init(fastifyArg) {
     let uid = request.body.uid || uuid();
     let proj = Object.assign({ uid }, request.body);
 
-    // Next, create user with key from tenant datastore.
-    // Returns the server key (.secret member is the datastore token).
-    datastore.userDocCreate(user.uid, 'projects', uid, proj)
+    // Next, create user with key from tenant storage.
+    // Returns the server key (.secret member is the storage token).
+    storage.userDocCreate(user.uid, 'projects', uid, proj)
     .then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
     }).catch(err => { 
@@ -262,7 +263,7 @@ function init(fastifyArg) {
     });
   })
 
-  fastifyArg.delete('/projects/:uid', async (request, reply) => {
+  listener.delete('/projects/:uid', async (request, reply) => {
     let user = await getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -270,7 +271,7 @@ function init(fastifyArg) {
     }
 
     let uid = request.params.uid;
-    datastore.userDocDelete(user.uid, 'projects', uid).then((response) => {
+    storage.userDocDelete(user.uid, 'projects', uid).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
       return;
     }).catch((err) => { 
@@ -280,7 +281,7 @@ function init(fastifyArg) {
 
   // Add a hook for logging.
   /*
-  fastifyArg.addHook('onResponse', (request, reply, next) => {
+  listener.addHook('onResponse', (request, reply, next) => {
     let req = request.req;
     let res = reply.res;
     // console.log(`Request from ${req.ip} for ${req.method} ${req.url}: ${res.statusCode} ${res.statusMessage}`);
@@ -289,4 +290,4 @@ function init(fastifyArg) {
   */
 }
 
-module.exports = { init };
+module.exports = { initRoutes };

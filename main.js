@@ -1,81 +1,107 @@
 // Require the framework and instantiate it
-const fs = require('fs')
 const path = require('path')
+const fastify = require('fastify')
 
-const routes = require('./routes')
+const storage = require('./storage')
 const config = require('./config')
-if (config.error) {
-  console.error("Environment configuration error: ", config.error)
-  return 1
-} 
+const routes = require('./routes')
 
-// Dump the config to the startup messages.
-console.log(`Server branding: '${config.NAME}' (${config.ID}) at ${config.DOMAIN}`);
-console.log('New user registration:', config.ALLOW_REGISTER ? 'allowed' : 'disabled');
-// console.log(`Data storage: ${config.DATA}`);
+const KEY_FILE = 'server.key'
+const CRT_FILE = 'server.crt'
 
-const db = require('./datastore')
+let serverCfg = undefined;
 
-// db.init is async. We don't really need to wait,
-// but the messages come out in order then, so lets.
-db.init().then(()=> {
-  let keypath = path.resolve(__dirname, 'ssl', 'server.key');
-  let crtpath = path.resolve(__dirname,'ssl', 'server.crt');
-  
-  let options = { logger: false };
-  let sslOptions = undefined;
-  
-  if (fs.existsSync(keypath) && fs.existsSync(crtpath)) {
-    let sslkey = fs.readFileSync(keypath);
-    let sslcrt = fs.readFileSync(crtpath);
-  
-    sslOptions = {
-      logger: false,
-      http2: true,
-      https: {
-        allowHTTP1: true, // fallback support for HTTP1
-        key: sslkey,
-        cert: sslcrt
-      }
-    }
-    console.log("Enabled HTTPS via SSL certificate files.");
-  } else {
-    console.warn("HTTPS disabled: SSL certificate files NOT provided.")
+// Returns the fastify instance on success.
+async function serverInit() {
+  serverCfg = await config.init();
+  if (!serverCfg) {
+    console.error("Environment configuration error: ", serverCfg);
+    return null;
   }
-  
-  const fastify = require('fastify')(sslOptions || options);
-  fastify.register(require('fastify-websocket'));
-  // Deal with CORS by enabling it since this is an API for all.
-  fastify.register(require('fastify-cors'), { });
-  // fastify.options('*', (request, reply) => { reply.send() })
 
-  fastify.setErrorHandler(function (error, request, reply) {
-    // Send error response
-    console.warn("fastify error handler for ",error);
-    let code = 500;
-    let message = 'Unknown server error';
-    if (error.statusCode)
-      code = error.statusCode;
-    else
-    if (error.message)
-      message = error.message;
-    reply.code(code).send(message);
-  })
+  // Loop over the listeners and initialize routes.
+  await config.forEachSiteAsync (async (siteCfg) => {
+    // Dump the config to the startup messages.
+    console.log(`Server branding: '${siteCfg.name}' (${siteCfg.id}) at ${siteCfg.domain}`);
+    console.log('New user registration:', siteCfg.register ? 'allowed' : 'disabled');
+    console.log(`Data storage: ${siteCfg.folder}`);
+    
+    let options = { logger: false };
+    let sslOptions = undefined;
 
-  // Initialize the Fastify REST API endpoints.
-  routes.init(fastify);
-  // Start the server listening.
-  fastify.listen(config.PORT, config.HOST, (err) => {
-    if (err) {
-      console.error(err.message);
-      process.exit(1)
+    let sslPath = path.resolve(siteCfg.folder, 'ssl');
+    let keyExists = await storage.fileExists(sslPath, KEY_FILE)
+    let crtExists = await storage.fileExists(sslPath, CRT_FILE)
+    
+    if (keyExists && crtExists) {
+      let sslkey = await storage.fileGet(sslPath, KEY_FILE)
+      let sslcrt = await storage.fileGet(sslPath, CRT_FILE)
+    
+      sslOptions = {
+        logger: false,
+        http2: true,
+        https: {
+          allowHTTP1: true, // fallback support for HTTP1
+          key: sslkey,
+          cert: sslcrt
+        }
+      }
+      console.log(`${siteCfg.id}: Enabled HTTPS via SSL certificate files.`);
+    } else {
+      console.warn(`${siteCfg.id}: HTTP only. HTTPS disabled. (SSL certificate files NOT provided.)`);
     }
+    
+    // 'listener' is a Fastify instance. 'siteCfg' is the configuration object.
+    const listener = fastify(sslOptions || options);
+    listener.register(require('fastify-websocket'));
+    // Deal with CORS by enabling it since this is an API for all.
+    listener.register(require('fastify-cors'), { });
+    // fastify.options('*', (request, reply) => { reply.send() })
 
-    let port = fastify.server.address().port;
-    console.log(`Server listening on port ${port}.`);
-  })
+    listener.setErrorHandler(function (error, request, reply) {
+      // Send error response
+      console.warn(`${siteCfg.id}: error handler for`,error);
+      let code = 500;
+      let message = 'Unknown server error';
+      if (error.statusCode)
+        code = error.statusCode;
+      else
+      if (error.message)
+        message = error.message;
+      reply.code(code).send(message);
+    })
 
-  fastify.ready(() => {
-    // console.log(fastify.printRoutes())
-  })
-});
+    // Save the fastify listener for easy access.
+    siteCfg.listener = listener;
+    // Initialize the Fastify REST API endpoints.
+    routes.initRoutes(siteCfg);
+  
+    // Start the server listening.
+    listener.listen(siteCfg.port, siteCfg.host, (err) => {
+      if (err) {
+        console.error(err.message);
+        process.exit(1)
+      }
+  
+      let port = listener.server.address().port;
+      console.log(`${siteCfg.id}: listening on port ${port}.`);
+    })
+  
+    /*
+    listener.ready(() => {
+      console.log(listener.printRoutes())
+    })
+    */
+
+    return listener;
+  });
+}
+
+// Mainline / top-level async function invocation.
+(async () => {
+  try {
+    let server = await serverInit();  // returns a fastify instance
+  } catch (e) {
+      console.error(e);
+  }
+})();

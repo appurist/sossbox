@@ -1,33 +1,34 @@
 const path = require('path');
 const fsPromises = require("fs/promises");
-const config = require('./config');
 
 const USERMETA = 'meta.json';
-let base = './data'
 
 let debug_level = 0;
 
-async function init(newBase) {
-  // check for parameter override, otherwise environment override
-  if (!newBase) {
-    newBase = config.DATA;
+function resolveSite(sites, site) {
+  let base = sites || './sites';
+  if (site) {
+    if (path.isAbsolute(site)) {
+      return path.resolve(site);
+    } else {
+      return path.resolve(base, site);
+    }
+  } else {
+    return path.resolve(base);
   }
-  // got something?
-  if (newBase) {
-    base = newBase;
-  }
+}
 
-  base = path.resolve(base);
-  await folderCreate(base); // create if necessary
-  await folderCreate(path.join(base, 'users')); // create if necessary
-  await folderCreate(path.join(base, 'logins')); // create if necessary
-  console.log("Storage will be at:", base);
-  return base;
+async function ensureSite(sites, site) {
+  let siteBase = resolveSite(sites, site);
+  await folderCreate(siteBase); // create if necessary
+  await folderCreate(path.join(siteBase, 'users')); // create if necessary
+  await folderCreate(path.join(siteBase, 'logins')); // create if necessary
+  return siteBase;
 }
 
 async function pathStat(folder, fn) {
   try {
-    let pn = path.isAbsolute(folder) ? path.join(folder, fn) : path.join(base, folder, fn);
+    let pn = path.resolve(folder, fn);
     return await fsPromises.stat(pn);
   } catch (e) {
     return null;
@@ -35,7 +36,7 @@ async function pathStat(folder, fn) {
 }
 async function folderExists(folder) {
   try {
-    let pn = path.isAbsolute(folder) ? folder : path.join(base, folder);
+    let pn = path.resolve(folder);
     let stat=await fsPromises.stat(pn);
     return stat.isDirectory();
   } catch (e) {
@@ -44,7 +45,7 @@ async function folderExists(folder) {
 }
 async function fileExists(folder, fn) {
   try {
-    let pn = path.isAbsolute(folder) ? path.join(folder, fn) : path.join(base, folder, fn);
+    let pn = path.resolve(folder, fn);
     let stat=await fsPromises.stat(pn);
     return stat.isFile();
   } catch (e) {
@@ -60,7 +61,7 @@ async function folderCreate(folder) {
     return false;
   }
 
-  let pn = path.isAbsolute(folder) ? folder : path.join(base, folder);
+  let pn = path.resolve(folder);
   let result = await fsPromises.mkdir(pn, { recursive: true, mode: 0o770});
   if (result) {
     console.log("Created folder:", result);
@@ -75,7 +76,7 @@ async function folderDelete(folder) {
     return false;
   }
 
-  let pn = path.isAbsolute(folder) ? folder : path.join(base, folder);
+  let pn = path.resolve(folder);
   return await fsPromises.rmdir(pn, { recursive: true });
 }
 
@@ -86,32 +87,31 @@ async function folderGet(folder) {
     return false;
   }
 
-  let pn = path.isAbsolute(folder) ? folder : path.join(base, folder);
+  let pn = path.resolve(folder);
   let result = await fsPromises.readdir(pn);
   return result;
 }
 
-async function fileGet(folder, name) {
-  if (debug_level) console.log("readFile:", folder, name);
-  if (!(folder && name)) {  // check if user trying to go outside their own subfolder
-    console.error('Error (readFile): Invalid read.')
+async function fileGet(folder, fn) {
+  if (debug_level) console.log("readFile:", folder, fn);
+  if (!fn) {
+    console.error('Error (writeFile): Invalid read.')
     return false;
   }
-
-  let fn = path.isAbsolute(folder) ? path.join(folder, name) : path.join(base, folder, name);
-  const result = await fsPromises.readFile(fn,'utf8');
+  let pn = folder ? path.resolve(folder, fn) : path.resolve(fn);
+  const result = await fsPromises.readFile(pn,'utf8');
   return result;
 }
 
 // file
 async function filePut(folder, fn, payload) {
   if (debug_level) console.log("writeFile:", folder, fn);
-  if (!(folder && fn)) {  // check if user trying to go outside their own subfolder
+  if (!fn) {
     console.error('Error (writeFile): Invalid write.')
     return false;
   }
 
-  let pn = path.isAbsolute(folder) ? path.join(folder, fn) : path.join(base, folder, fn);
+  let pn = path.resolve(folder, fn);
   let parsed = path.parse(pn);
   let uid = parsed.name;
   let ext = parsed.ext;
@@ -131,39 +131,38 @@ async function filePut(folder, fn, payload) {
   return json;
 }
 
-async function fileDelete(folder, name) {
-  if (debug_level) console.log("unlink:", folder, name);
-  if (!(folder && name)) {  // check if user trying to go outside their own subfolder
+async function fileDelete(folder, fn) {
+  if (debug_level) console.log("unlink:", folder, fn);
+  if (!(folder && fn)) {  // check if user trying to go outside their own subfolder
     console.error('Error (unlink): Invalid delete.')
     return false;
   }
 
-  let fn = path.isAbsolute(folder) ? path.join(folder, name) : path.join(base, folder, name);
-  return await fsPromises.unlink(fn);
+  let pn = path.resolve(folder, fn);
+  return await fsPromises.unlink(pn);
 }
 
-
 // this method uses a file system link to associate a login ID with a user UID (folder)
-async function userLink(name, who) {
+async function userLink(siteBase, name, who) {
   if (debug_level) console.log("userLink:", name, who);
   if (!(name && who)) {  // check if user trying to go outside their own subfolder
     console.error('Error (userLink): Invalid request.')
     return false;
   }
 
-  let existingPath = path.join(base, 'users', who);
-  let newPath = path.join(base, 'logins', name);
+  let existingPath = path.join(siteBase, 'users', who);
+  let newPath = path.join(siteBase, 'logins', name);
   return await fsPromises.symlink(existingPath, newPath, 'junction');
 }
 // Needed for user delete and user login ID changes. Not to be confused with a user delete.
-async function userUnlink(name) {
+async function userUnlink(siteBase, name) {
   if (debug_level) console.log("userUnlink:", name);
   if (!name) {  // check if user trying to go outside their own subfolder
     console.error('Error (userUnlink): Invalid request.')
     return false;
   }
 
-  let pn = path.join(base, 'logins', name);
+  let pn = path.join(siteBase, 'logins', name);
   return await fsPromises.unlink(pn);
 }
 
@@ -282,8 +281,32 @@ async function userByLogin(name) {
   return userjson ? JSON.parse(userjson) : null;
 }
 
+//////////////////////////////
+
+async function readCfg(pn, fn) {
+  try {
+               
+    let text = await fileGet(pn, fn);
+    let lines = text.replace(/\r\n/g,'\n').split('\n');
+    let jsonLines = [];
+    for (let line of lines) {
+      if (!line.trim().startsWith('#')) {
+        jsonLines.push(line);
+      }
+    }
+    let json = jsonLines.join('\n');
+    cfg = JSON.parse(json);
+    return cfg;
+  } catch (err) {
+    console.error(err);
+  }
+  return null;
+}
+
 module.exports = {
-  init, pathStat, folderExists, fileExists,
+  readCfg, resolveSite, ensureSite,
+
+  pathStat, folderExists, fileExists,
   folderCreate, folderGet, folderDelete,
   fileGet, filePut, fileDelete,
 

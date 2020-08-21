@@ -1,44 +1,80 @@
-// Site installation MUST update these to something unique to that site.
-let JWT_SECRET = 'sossbox_secret'
-let ALLOW_REGISTER = true
+const storage = require('./storage');
 
-// Site installation SHOULD probably update these to something appropriate for that site.
-let NAME = 'SOSSBox Server'
-let DOMAIN = 'sossbox.com'
-let PORT = 23232
-let DATA = './data'
+const SERVER_CFG = 'sossbox.cfg';
+const SITE_CFG = 'site.cfg';
 
-// Site installation CAN update these to something else if the effects are understood.
-let HOST = '0.0.0.0'
-let ID = 'sossbox'
+// config has name and sites (folder)
+const DEFAULT_CFG = {
+  name: 'SOSSBox Server',
+  sites: './sites'
+}
+let cfg = { };
 
+// each site has id, name and sites (folder)
+const DEFAULT_SITE = {
+  secret: null, // required from file
+  domain: null, // required from file but more for reporting and documentation
+  id: null,     // not required, defaults to the folder name, e.g. 'sossbox'
 
-///////////////////////////////////////////////////////////////////////////
+  // Site installation CAN update these to something more appropriate for that site.
+  name: 'SOSSBox',
+  port: 23232,
+  register: true,
+  static: "static",
 
-// Sites should not modify any of this code below.
-if (process.env.JWT_SECRET) {
-  JWT_SECRET = process.env.JWT_SECRET.trim();
+  // Site installation CAN update these to something else if the effects are understood.
+  folder: '.',
+  host: '0.0.0.0'
 }
-if (process.env.ALLOW_REGISTER) {
-  ALLOW_REGISTER = process.env.ALLOW_REGISTER.trim() === 'true';
-}
-if (process.env.NAME) {
-  NAME = process.env.NAME.trim();
-}
-if (process.env.DOMAIN) {
-  DOMAIN = process.env.DOMAIN.trim();
-}
-if (process.env.PORT) {
-  PORT = process.env.PORT.trim();
-}
-if (process.env.DATA) {
-  DATA = process.env.DATA.trim();
-}
-if (process.env.HOST) {
-  HOST = process.env.HOST.trim();
-}
-if (process.env.ID) {
-  ID = process.env.ID.trim();
+let siteMap = new Map;  // note this is a Map, use set() and get()
+
+function getConfig() {
+  return cfg;
 }
 
-module.exports = { JWT_SECRET, ALLOW_REGISTER, NAME, DOMAIN, DATA, PORT, HOST, ID };
+function getSite(siteName) {
+  let site = siteMap.get(siteName);
+  return site ? site : null;
+}
+
+async function init() {
+  cfg = Object.assign({}, DEFAULT_CFG, await storage.readCfg('', SERVER_CFG));
+  let base = await storage.resolveSite(cfg.sites);
+  console.log("Storage will be at:", base);
+
+  let siteNames = await storage.folderGet(cfg.sites);
+  for (let site of siteNames) {
+    let siteBase = await storage.ensureSite(cfg.sites, site);  // create if needed and return path
+    let siteCfg = Object.assign({}, DEFAULT_SITE, await storage.readCfg(siteBase, SITE_CFG));
+    if (siteCfg) {
+      siteCfg.id = siteCfg.id || site;
+      siteCfg.folder = siteBase;
+      siteMap.set(site, siteCfg);
+      console.log(`Storage ready for '${siteCfg.name}': ${siteCfg.folder}`);
+    }
+  }
+
+  return cfg;
+}
+
+function forEachSiteID(callback) {
+  console.log("sites:", siteMap)
+  for (let site of siteMap.values()) {
+    callback(site.id);
+  }
+}
+function forEachSite(callback) {
+  console.log("sites:", siteMap)
+  for (let site of siteMap.values()) {
+    callback(site);
+  }
+}
+async function forEachSiteAsync(callback) {
+  console.log("sites:", siteMap)
+  for (let site of siteMap.values()) {
+    await callback(site);
+  }
+}
+
+// due to circular module references, be sure to declare exports before requiring the circular module (storage);
+module.exports = { init, getConfig, forEachSiteID, forEachSite, forEachSiteAsync, getSite };
