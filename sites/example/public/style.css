@@ -1,0 +1,29 @@
+* { padding: 0; margin: 0; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background-color: #406080;
+  font-family: system-ui;
+  font-size: small;
+  font-weight: 100;
+}
+
+[text-center] {
+  text-align: center;
+}
+
+[content] {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  filter: none;
+  color: white;
+  backdrop-filter: blur(2px) opacity(60%);
+  display: block;
+  overflow: hidden;
+}
+
+[card] {
+  padding: 1rem 2rem;
+}
