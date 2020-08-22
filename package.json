@@ -1,6 +1,6 @@
 {
   "name": "sossbox",
-  "version": "1.0.821",
+  "version": "1.0.822",
   "description": "A Simple Online Storage Server.",
   "main": "main.js",
   "scripts": {
