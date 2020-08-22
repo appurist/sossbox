@@ -33,7 +33,7 @@ class Site {
     this.domain = siteCfg.domain;
     this.port = siteCfg.port;
     this.register = siteCfg.register;
-    this.static = siteCfg.static;
+    this.public = siteCfg.public;
     this.host = siteCfg.host;
 
     // now determine where the per-site data actually is
@@ -57,6 +57,15 @@ class Site {
 
     // Return the siteData location from per-site config.
     return result;
+  }
+
+  async fileGet(folder, fn) {
+    let pn = path.join(this.siteData, folder);
+    return await io.fileGet(pn, fn);
+  }
+  async docGet(folder, fn) {
+    let pn = path.join(this.siteData, folder);
+    return await io.jsonGet(pn, fn);
   }
 
   // this method uses a file system link to associate a login ID with a user UID (folder)
@@ -93,40 +102,40 @@ class Site {
   }
 
   async userCollections(who) {
-    return await io.folderGet(userFolder(who, ''));
+    return await io.folderGet(this.userFolder(who, ''));
   }
 
   async userListDocs(who, where) {
-    return await folderGet(userFolder(who, where));
+    return await io.folderGet(this.userFolder(who, where));
   }
 
   // who, where and which are all UIDs, for user, collection, document
   async userDocGet(who, where, which) {
-    let json = await fileGet(userFolder(who, where), which);
-    return JSON.parse(json);
+    return await io.jsonGet(this.userFolder(who, where), which);
   }
 
   async userDocCreate(who, where, which, payload) {
     let text = (typeof payload === 'string') ? payload : JSON.stringify(payload);
-    return await filePut(userFolder(who, where), which, text);
+    return await io.filePut(this.userFolder(who, where), which, text);
   }
 
   async userDocReplace(who, where, which, payload) {
     // replace doc with payload
     let text = (typeof payload === 'string') ? payload : JSON.stringify(payload);
-    return await filePut(userFolder(who, where), which, text);
+    return await io.filePut(this.userFolder(who, where), which, text);
   }
 
   async userDocUpdate(who, where, which, updates) {
-    let rec = await fileGet(who, where, which);
+    let folder = this.userFolder(who, where);
+    let rec = await io.fileGet(folder, which);
     // update (merge) doc with payload
     let payload = Object.assign({ }, rec, updates);
     let text = (typeof payload === 'string') ? payload : JSON.stringify(payload);
-    return await filePut(userFolder(who, where), which, text);
+    return await io.filePut(folder, which, text);
   }
 
   async userDocDelete(who, where, which) {
-    return await fileDelete(userFolder(who, where), which);
+    return await io.fileDelete(this.userFolder(who, where), which);
   }
 
   // These two know about the important user subfolders.
@@ -134,15 +143,15 @@ class Site {
     let userDataFolders = [ 'assets', 'projects'];
     let result = true;
     for (let folder of userDataFolders) {
-      let fresult = await folderCreate(userFolder(who, folder));
+      let fresult = await io.folderCreate(this.userFolder(who, folder));
       result = result && fresult; // continue on error but track overall success/fail
     }
     return result;
   }
-  async userDeleteTree(who) {
+  async userDeleteSubfolders(who) {
     let result = true;
     for (let folder of userDataFolders) {
-      let fresult = await folderDelete(userFolder(who, folder));
+      let fresult = await io.folderDelete(this.userFolder(who, folder));
       result = result && fresult; // continue on error but track overall success/fail
     }
     return result;
@@ -151,21 +160,21 @@ class Site {
   // like createDoc, but creates a document with credentials that can be checked by userLogin()
   async userCreate(credentials, user) {
     let payload = { credentials, user };
-    await userCreateTree(user.uid);
-    await filePut(userFolder(user.uid, ''), USERMETA, JSON.stringify(payload, 2));
-    await userLink(user.login, user.uid);
+    await this.userCreateTree(user.uid);
+    await io.filePut(this.userFolder(user.uid, ''), USERMETA, JSON.stringify(payload, 2));
+    await this.userLink(user.login, user.uid);
     return payload; // the only really important one?
   }
 
   // like createDoc, but creates a document with credentials that can be checked by serverClient.login()
   async userDelete(user) {
-    let result1 = await userUnlink(user.login);
-    let result2 = await userDeleteTree(user.uid);
+    let result1 = await this.userUnlink(user.login);
+    let result2 = await this.userDeleteSubfolders(user.uid);
 
     // TODO: Force-logout all?
 
     // now, in the top-level server database, create a user record
-    let result3 = await folderDelete(userFolder(who));
+    let result3 = await io.folderDelete(this.userFolder(who));
 
     return result1 && result2 && result3;
   }
@@ -186,15 +195,12 @@ class Site {
   }
 
   async userByUID(who) {
-    let userjson = await fileGet(userFolder(who), USERMETA);
-    return userjson ? JSON.parse(userjson) : null;
+    return await io.jsonGet(this.userFolder(who), USERMETA) || null;
   }
   async userByLogin(name) {
-    let pn = path.join('logins', name);
-    let userjson = await fileGet(pn, USERMETA);
-    return userjson ? JSON.parse(userjson) : null;
+    let pn = path.join(this.siteData, 'logins', name);
+    return await io.jsonGet(pn, USERMETA) || null;
   }
-
 }
 
 module.exports = Site;

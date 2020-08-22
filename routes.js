@@ -48,10 +48,11 @@ console.log('Node.js '+process.version);
 
 function initRoutes(siteCfg) {
   let listener = siteCfg.listener;
+  let mySite = config.getSite(siteCfg.id);
   // Declare a route
   listener.get('/status', (request, reply) => {
     let motd = '';
-    io.fileGet(siteCfg.data, 'motd.md').then(motdText => {
+    mySite.fileGet('', 'motd.md').then(motdText => {
       motd = motdText;
     }).catch(err => {
       if (err.code !== 'ENOENT') {
@@ -64,6 +65,14 @@ function initRoutes(siteCfg) {
     let response = { name: config.id, version: packageVersion, motd };
     reply.type(JSON_TYPE).send(JSON.stringify(response));    
   })
+
+  function getAuth(request) {
+    if (!request.headers.hasOwnProperty('authorization'))
+      return false;
+
+    let words = request.headers.authorization.split(' ');
+    return (words[0] === 'Bearer') ? verifyToken (words[1]) : false;
+  }
 
   // support the websocket
   listener.get('/updates', { websocket: true }, (connection, req) => {
@@ -85,7 +94,7 @@ function initRoutes(siteCfg) {
   })  
 
   listener.get('/users', (request, reply) => {
-    io.folderGet('users').then((response) => {
+    mySite.folderGet('users').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
       } else {
@@ -98,6 +107,17 @@ function initRoutes(siteCfg) {
 
 
   // Same as /users/:myID but with an implicit ID
+  listener.get('/profile', async (request, reply) => {
+    let user = getAuth(request);
+    if (!user) {
+      reply.code(401).send('Not authorized.');
+      return;
+    }
+    let meta = await mySite.userByUID(user.uid, "meta");
+    reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
+  })
+
+  // Same as /users/:myID but with an implicit ID
   listener.put('/profile', async (request, reply) => {
     let user = getAuth(request);
     if (!user) {
@@ -105,11 +125,10 @@ function initRoutes(siteCfg) {
       return;
     }
     // TODO: This needs to merge the payload with the current profile data.
-    let meta = userDocGet(user, '', "meta");
-    let oldUser = meta.user;
-    meta.user = Object.assign({}, oldUser, request.body);
+    let meta = mySite.userByUID(user.uid, "meta");
+    meta.user = Object.assign({}, meta.user, request.body);
     await userDocReplace(user, '', "meta", meta);
-    reply.type(JSON_TYPE).send(JSON.stringify(meta));    
+    reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
   })
 
   listener.get('/users/:loginName', (request, reply) => {
@@ -123,7 +142,7 @@ function initRoutes(siteCfg) {
       reply.code(401).send('Not authorized.');
       return;
     }
-    io.userByLogin(login).then((response) => {
+    mySite.userByLogin(login).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response.user));    
     }).catch((err) => { 
       handleError(err, request, reply);
@@ -144,7 +163,7 @@ function initRoutes(siteCfg) {
 
     // Next, create user with key from tenant storage.
     // Returns the server key (.secret member is the storage token).
-    io.userCreate(credentials, user)
+    mySite.userCreate(credentials, user)
     .then(response => {
       let user = response.user;
       reply.type(JSON_TYPE).send(JSON.stringify(user));
@@ -155,7 +174,7 @@ function initRoutes(siteCfg) {
 
   listener.delete('/users/:uid', (request, reply) => {
     let uid = request.params.uid;
-    io.userDelete(uid).then((response) => {
+    mySite.userDelete(uid).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
       return;
     }).catch((err) => { 
@@ -169,14 +188,14 @@ function initRoutes(siteCfg) {
       return false;
     }
 
-    io.userByLogin(request.body.login)
+    mySite.userByLogin(request.body.login)
     .then(userRec => {
       let testhash = md5(request.body.password);
       if (testhash !== userRec.credentials.hash) {
         reply.code(401).send('Authentication failed, invalid password.');
         return;
       }
-      io.fileGet('.', 'motd.md').then(motd => {
+      mySite.fileGet('', 'motd.md').then(motd => {
         let response = Object.assign({ }, userRec.user)
         response.token = jwt.sign(userRec.user, siteCfg.secret, { issuer: siteCfg.id})
         // The token does not include more than basic user.
@@ -211,14 +230,6 @@ function initRoutes(siteCfg) {
     return result;
   }
 
-  function getAuth(request) {
-    if (!request.headers.hasOwnProperty('authorization'))
-      return false;
-
-    let words = request.headers.authorization.split(' ');
-    return (words[0] === 'Bearer') ? verifyToken (words[1]) : false;
-  }
-
   listener.get('/projects', async (request, reply) => {
     let user = getAuth(request);
     if (!user) {
@@ -226,7 +237,7 @@ function initRoutes(siteCfg) {
       return;
     }
 
-    io.userListDocs(user.uid, 'projects').then((response) => {
+    mySite.userListDocs(user.uid, 'projects').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));
       } else {
@@ -243,7 +254,7 @@ function initRoutes(siteCfg) {
     }
 
     let id = request.params.id;
-    io.userDocGet(user.uid, 'projects', id).then(response => {
+    mySite.userDocGet(user.uid, 'projects', id).then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }).catch((err) => { 
       handleError(err, request, reply);
@@ -263,7 +274,7 @@ function initRoutes(siteCfg) {
 
     // Next, create user with key from tenant storage.
     // Returns the server key (.secret member is the storage token).
-    io.userDocCreate(user.uid, 'projects', uid, proj)
+    mySite.userDocCreate(user.uid, 'projects', uid, proj)
     .then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
     }).catch(err => { 
@@ -279,7 +290,7 @@ function initRoutes(siteCfg) {
     }
 
     let uid = request.params.uid;
-    io.userDocDelete(user.uid, 'projects', uid).then((response) => {
+    mySite.userDocDelete(user.uid, 'projects', uid).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
       return;
     }).catch((err) => { 
@@ -289,11 +300,11 @@ function initRoutes(siteCfg) {
 
 
   // now support serving static files, e.g. a "public" folder, if specified.
-  if (siteCfg.static) {
+  if (siteCfg.public) {
     let site = config.getSite(siteCfg.id);
     let base = site.getSiteBase();
-    let serveFolder = path.join(base, siteCfg.static);
-    console.log("Serving static files from", serveFolder);
+    let serveFolder = path.join(base, siteCfg.public);
+    console.log("Serving static public files from", serveFolder);
     listener.register(fastifyStatic, {
       root: serveFolder,
       list: true,

@@ -11,3 +11,4 @@ ssl/
 
 Rename your file to use those file names and the server will automatically recognize and use them with no configuration necessary.
 
+In the SOSSBox root folder, these files would refer to the serving of the `public` folder.

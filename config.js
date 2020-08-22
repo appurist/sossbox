@@ -23,7 +23,7 @@ const DEFAULT_SITE = {
   name: 'SOSSBox',
   port: 23232,
   register: true,
-  static: "static",
+  public: "public",
 
   // Site installation CAN update these to something else if the effects are understood.
   data: '.',

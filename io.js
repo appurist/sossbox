@@ -167,11 +167,9 @@ async function symUnlink(name) {
 }
 
 module.exports = {
-  pathStat, folderExists, fileExists,
+  fileExists, filePut, fileGet, fileDelete,
 
-  folderCreate, folderGet, folderDelete,
+  folderExists, folderCreate, folderGet, folderDelete,
 
-  fileGet, filePut, fileDelete,
-
-  symLink, symUnlink, jsonGet
+  pathStat, symLink, symUnlink, jsonGet
  };
