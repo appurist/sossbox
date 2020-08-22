@@ -2,7 +2,7 @@ const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 
-const storage = require('./storage');
+const io = require('./io');
 const config = require('./config');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
@@ -77,7 +77,7 @@ function initRoutes(siteCfg) {
   })  
 
   listener.get('/users', (request, reply) => {
-    storage.folderGet('users').then((response) => {
+    io.folderGet('users').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
       } else {
@@ -115,7 +115,7 @@ function initRoutes(siteCfg) {
       reply.code(401).send('Not authorized.');
       return;
     }
-    storage.userByLogin(login).then((response) => {
+    io.userByLogin(login).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response.user));    
     }).catch((err) => { 
       handleError(err, request, reply);
@@ -136,7 +136,7 @@ function initRoutes(siteCfg) {
 
     // Next, create user with key from tenant storage.
     // Returns the server key (.secret member is the storage token).
-    storage.userCreate(credentials, user)
+    io.userCreate(credentials, user)
     .then(response => {
       let user = response.user;
       reply.type(JSON_TYPE).send(JSON.stringify(user));
@@ -147,7 +147,7 @@ function initRoutes(siteCfg) {
 
   listener.delete('/users/:uid', (request, reply) => {
     let uid = request.params.uid;
-    storage.userDelete(uid).then((response) => {
+    io.userDelete(uid).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
       return;
     }).catch((err) => { 
@@ -161,14 +161,14 @@ function initRoutes(siteCfg) {
       return false;
     }
 
-    storage.userByLogin(request.body.login)
+    io.userByLogin(request.body.login)
     .then(userRec => {
       let testhash = md5(request.body.password);
       if (testhash !== userRec.credentials.hash) {
         reply.code(401).send('Authentication failed, invalid password.');
         return;
       }
-      storage.fileGet('.', 'motd.md').then(motd => {
+      io.fileGet('.', 'motd.md').then(motd => {
         let response = Object.assign({ }, userRec.user)
         response.token = jwt.sign(userRec.user, siteCfg.secret, { issuer: siteCfg.id})
         // The token does not include more than basic user.
@@ -218,7 +218,7 @@ function initRoutes(siteCfg) {
       return;
     }
 
-    storage.userListDocs(user.uid, 'projects').then((response) => {
+    io.userListDocs(user.uid, 'projects').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));
       } else {
@@ -235,7 +235,7 @@ function initRoutes(siteCfg) {
     }
 
     let id = request.params.id;
-    storage.userDocGet(user.uid, 'projects', id).then(response => {
+    io.userDocGet(user.uid, 'projects', id).then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }).catch((err) => { 
       handleError(err, request, reply);
@@ -255,7 +255,7 @@ function initRoutes(siteCfg) {
 
     // Next, create user with key from tenant storage.
     // Returns the server key (.secret member is the storage token).
-    storage.userDocCreate(user.uid, 'projects', uid, proj)
+    io.userDocCreate(user.uid, 'projects', uid, proj)
     .then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
     }).catch(err => { 
@@ -271,7 +271,7 @@ function initRoutes(siteCfg) {
     }
 
     let uid = request.params.uid;
-    storage.userDocDelete(user.uid, 'projects', uid).then((response) => {
+    io.userDocDelete(user.uid, 'projects', uid).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
       return;
     }).catch((err) => { 

@@ -2,8 +2,10 @@
 const path = require('path')
 const fastify = require('fastify')
 
-const storage = require('./storage')
+const io = require('./io')
 const config = require('./config')
+const Site = require('./site')
+
 const routes = require('./routes')
 
 const KEY_FILE = 'server.key'
@@ -20,23 +22,21 @@ async function serverInit() {
   }
 
   // Loop over the listeners and initialize routes.
-  await config.forEachSiteAsync (async (siteCfg) => {
-    // Dump the config to the startup messages.
-    console.log(`Server branding: '${siteCfg.name}' (${siteCfg.id}) at ${siteCfg.domain}`);
-    console.log('New user registration:', siteCfg.register ? 'allowed' : 'disabled');
-    console.log(`Data storage: ${siteCfg.folder}`);
-    
+  await config.forEachSiteAsync (async (site) => {
+    let siteCfg = site.getSiteCfg();
+    let siteData = site.getSiteData();
+
     let options = { logger: false };
     let sslOptions = undefined;
 
-    let sslPath = path.resolve(siteCfg.folder, 'ssl');
-    let keyExists = await storage.fileExists(sslPath, KEY_FILE)
-    let crtExists = await storage.fileExists(sslPath, CRT_FILE)
-    
+    let sslPath = path.join(siteData, 'ssl');
+    let keyExists = await io.fileExists(sslPath, KEY_FILE)
+    let crtExists = await io.fileExists(sslPath, CRT_FILE)
+
     if (keyExists && crtExists) {
-      let sslkey = await storage.fileGet(sslPath, KEY_FILE)
-      let sslcrt = await storage.fileGet(sslPath, CRT_FILE)
-    
+      let sslkey = await io.fileGet(sslPath, KEY_FILE)
+      let sslcrt = await io.fileGet(sslPath, CRT_FILE)
+
       sslOptions = {
         logger: false,
         http2: true,

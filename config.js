@@ -1,14 +1,17 @@
-const storage = require('./storage');
+const io = require('./io');
+const Site = require('./site');
 
 const SERVER_CFG = 'sossbox.cfg';
 const SITE_CFG = 'site.cfg';
+
+let cfg = { };
+let siteMap = new Map;  // note this is a Map, use set() and get()
 
 // config has name and sites (folder)
 const DEFAULT_CFG = {
   name: 'SOSSBox Server',
   sites: './sites'
 }
-let cfg = { };
 
 // each site has id, name and sites (folder)
 const DEFAULT_SITE = {
@@ -23,10 +26,34 @@ const DEFAULT_SITE = {
   static: "static",
 
   // Site installation CAN update these to something else if the effects are understood.
-  folder: '.',
+  data: '.',
   host: '0.0.0.0'
 }
-let siteMap = new Map;  // note this is a Map, use set() and get()
+
+async function init() {
+  cfg = Object.assign({}, DEFAULT_CFG, await io.jsonGet('', SERVER_CFG));
+  let sitesFolder = await Site.resolveSiteBase(__dirname, cfg.sites);
+  console.log("Root storage will be at:", sitesFolder);
+
+
+  let siteFolders = await io.folderGet(sitesFolder);
+  for (let folder of siteFolders) {
+    let site = new Site(sitesFolder, folder);
+    let siteBase = site.getSiteBase();
+    let rawCfg = await io.jsonGet(siteBase, SITE_CFG);
+    siteCfg = Object.assign({}, DEFAULT_SITE, rawCfg);
+
+    // initSiteData returns the resolved path to the per-site data folder.
+    let siteData = await site.initSiteData(siteCfg);  // create if needed and return path
+
+    if (siteCfg) {  // cache it in the siteMap
+      siteMap.set(folder, site);
+      console.log(`Storage ready for '${siteCfg.name}': ${siteData}`);
+    }
+  }
+
+  return cfg;
+}
 
 function getConfig() {
   return cfg;
@@ -37,30 +64,10 @@ function getSite(siteName) {
   return site ? site : null;
 }
 
-async function init() {
-  cfg = Object.assign({}, DEFAULT_CFG, await storage.readCfg('', SERVER_CFG));
-  let base = await storage.resolveSite(cfg.sites);
-  console.log("Storage will be at:", base);
-
-  let siteNames = await storage.folderGet(cfg.sites);
-  for (let site of siteNames) {
-    let siteBase = await storage.ensureSite(cfg.sites, site);  // create if needed and return path
-    let siteCfg = Object.assign({}, DEFAULT_SITE, await storage.readCfg(siteBase, SITE_CFG));
-    if (siteCfg) {
-      siteCfg.id = siteCfg.id || site;
-      siteCfg.folder = siteBase;
-      siteMap.set(site, siteCfg);
-      console.log(`Storage ready for '${siteCfg.name}': ${siteCfg.folder}`);
-    }
-  }
-
-  return cfg;
-}
-
 function forEachSiteID(callback) {
   console.log("sites:", siteMap)
   for (let site of siteMap.values()) {
-    callback(site.id);
+    callback(site.getId());
   }
 }
 function forEachSite(callback) {
