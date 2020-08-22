@@ -1,6 +1,8 @@
+const path = require('path');
 const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
+const fastifyStatic = require('fastify-static')
 
 const io = require('./io');
 const config = require('./config');
@@ -61,9 +63,6 @@ function initRoutes(siteCfg) {
     });
     let response = { name: config.id, version: packageVersion, motd };
     reply.type(JSON_TYPE).send(JSON.stringify(response));    
-  })
-  listener.get('/', (request, reply) => {
-    reply.send('You have reached the API server for '+siteCfg.domain)
   })
 
   // support the websocket
@@ -287,6 +286,24 @@ function initRoutes(siteCfg) {
       handleError(err, request, reply);
     });
   });
+
+
+  // now support serving static files, e.g. a "public" folder, if specified.
+  if (siteCfg.static) {
+    let site = config.getSite(siteCfg.id);
+    let base = site.getSiteBase();
+    let serveFolder = path.join(base, siteCfg.static);
+    console.log("Serving static files from", serveFolder);
+    listener.register(fastifyStatic, {
+      root: serveFolder,
+      list: true,
+      prefix: '/'
+    })
+  } else {
+    listener.get('/', (request, reply) => {
+      reply.send('You have reached the API server for '+siteCfg.domain)
+    })
+  }
 
   // Add a hook for logging.
   /*
