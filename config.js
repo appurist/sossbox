@@ -32,7 +32,8 @@ const DEFAULT_SITE = {
 
 async function init() {
   cfg = Object.assign({}, DEFAULT_CFG, await io.jsonGet('', SERVER_CFG));
-  let sitesFolder = await Site.resolveSiteBase(__dirname, cfg.sites);
+  let currentFolder = process.cwd();  // was __dirname but when packaged that is "/snapshot/"
+  let sitesFolder = await Site.resolveSiteBase(currentFolder, cfg.sites);
   console.log("Root storage will be at:", sitesFolder);
 
 
@@ -65,19 +66,16 @@ function getSite(siteName) {
 }
 
 function forEachSiteID(callback) {
-  console.log("sites:", siteMap)
   for (let site of siteMap.values()) {
     callback(site.getId());
   }
 }
 function forEachSite(callback) {
-  console.log("sites:", siteMap)
   for (let site of siteMap.values()) {
     callback(site);
   }
 }
 async function forEachSiteAsync(callback) {
-  console.log("sites:", siteMap)
   for (let site of siteMap.values()) {
     await callback(site);
   }

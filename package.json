@@ -5,10 +5,10 @@
   "main": "main.js",
   "scripts": {
     "start": "node main.js",
-    "build": "pkg -t latest-win-x64 main.js -o dist/sossbox.exe",
-    "build:win": "pkg -t latest-win-x64 main.js -o dist/sossbox.exe",
-    "build:linux": "pkg -t latest-linux-x64 main.js -o dist/sossbox",
-    "build:mac": "pkg -t latest-macos-x64 main.js -o dist/sossbox-macos",
+    "build": "pkg main.js -o dist/",
+    "build:win": "pkg -t latest-win-x64 main.js -o sossbox.exe",
+    "build:linux": "pkg -t latest-linux-x64 main.js -o sossbox",
+    "build:mac": "pkg -t latest-macos-x64 main.js -o sossbox-macos",
     "test": "echo no tests available."
   },
   "engines": {
