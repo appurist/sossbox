@@ -67,7 +67,9 @@ data/
 sossbox.cfg
 
 #but include these in the git repo
-sites/*/data/**/*
-!sites/*/data/static
-!sites/sossbox/site.cfg
-!sites/authordesktop/site.cfg
+sites/*
+!sites/example
+!sites/example/*
+!sites/example2
+!sites/example2/*
+
