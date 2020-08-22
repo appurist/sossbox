@@ -48,10 +48,19 @@ function initRoutes(siteCfg) {
   let listener = siteCfg.listener;
   // Declare a route
   listener.get('/status', (request, reply) => {
-    storage.fileGet(siteCfg.folder, 'motd.md').then(motd => {
-      let response = { name: config.id, version: packageVersion, motd };
-      reply.type(JSON_TYPE).send(JSON.stringify(response));    
-    })
+    let motd = '';
+    io.fileGet(siteCfg.data, 'motd.md').then(motdText => {
+      motd = motdText;
+    }).catch(err => {
+      if (err.code !== 'ENOENT') {
+        console.err("MOTD:", siteCfg.id, err);
+        reply.code(500).send('motd.md not found')
+        return;
+      }
+      // otherwise fall through on ENOENT
+    });
+    let response = { name: config.id, version: packageVersion, motd };
+    reply.type(JSON_TYPE).send(JSON.stringify(response));    
   })
   listener.get('/', (request, reply) => {
     reply.send('You have reached the API server for '+siteCfg.domain)
