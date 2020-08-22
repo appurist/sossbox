@@ -76,6 +76,11 @@ async function serverInit() {
     // Initialize the Fastify REST API endpoints.
     routes.initRoutes(siteCfg);
   
+    // If port is 0, default to the standard HTTP or HTTPS ports for web servers.
+    if (siteCfg.port === 0) {
+      siteCfg.port = sslOptions ? 443 : 80;
+    }
+
     // Start the server listening.
     listener.listen(siteCfg.port, siteCfg.host, (err) => {
       if (err) {
