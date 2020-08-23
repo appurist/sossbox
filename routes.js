@@ -46,22 +46,40 @@ let packageVersion = require('./package.json').version;
 console.log('SOSSBox '+packageVersion);
 console.log('Node.js '+process.version);
 
-function getAuth(request) {
-  if (!request.headers.hasOwnProperty('authorization'))
-    return false;
-
-  let words = request.headers.authorization.split(' ');
-  return (words[0] === 'Bearer') ? verifyToken (words[1]) : false;
-}
-
-function isAdmin(request) {
-  let user = getAuth(request);
-  return user && user.administrator;
-}
-
 function initRoutes(siteCfg) {
   let listener = siteCfg.listener;
   let mySite = config.getSite(siteCfg.id);
+
+  // some nested functions so we have siteCfg and mySite
+  function verifyToken(token) {
+    let result = jwt.verify(token, siteCfg.secret, function(err, decoded) {
+      if (err) {
+        console.error(err);
+        return null;
+      }
+  
+      console.log("Storing user for token:", decoded);
+      let user = decoded;
+      user.token = token;
+      user.authenticated = true;
+      return user;
+    });
+    return result;
+  }
+  
+  function getAuth(request) {
+    if (!request.headers.hasOwnProperty('authorization'))
+      return false;
+  
+    let words = request.headers.authorization.split(' ');
+    return (words[0] === 'Bearer') ? verifyToken (words[1]) : false;
+  }
+  
+  function isAdmin(request) {
+    let user = getAuth(request);
+    return user && user.administrator;
+  }
+    
   // Declare a route
   listener.get('/status', (request, reply) => {
     let motd = '';
@@ -103,7 +121,6 @@ function initRoutes(siteCfg) {
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
     }
-
     mySite.folderGet('users').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
@@ -148,8 +165,8 @@ function initRoutes(siteCfg) {
       return;
     }
     let login = request.params.loginName;
-    if ((login !== user.login) && !user.administrator) {
-      reply.code(401).send('Not authorized.');
+    if ((login !== user.login) && !isAdmin(request)) {
+      reply.code(403).send('Forbidden: user is not authorized.');
       return;
     }
     mySite.userByLogin(login).then((response) => {
@@ -183,7 +200,16 @@ function initRoutes(siteCfg) {
   })
 
   listener.delete('/users/:uid', (request, reply) => {
+    let user = getAuth(request);
+    if (!user) {
+      reply.code(401).send('Not authorized.');
+      return;
+    }
     let uid = request.params.uid;
+    if ((uid !== user.uid) && !isAdmin(request)) {
+      reply.code(403).send('Forbidden: user is not authorized.');
+      return;
+    }
     mySite.userDelete(uid).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
       return;
@@ -219,26 +245,15 @@ function initRoutes(siteCfg) {
   });
 
   listener.post('/logout', (request, reply) => {
+    let user = getAuth(request);
+    if (!user) {
+      reply.code(401).send('Not authorized.');
+      return;
+    }
+
     let response = { message: 'You have been logged out.', result: 'OK' };
     reply.type(JSON_TYPE).send(JSON.stringify(response));    
   });
-
-  function verifyToken(token) {
-    let result = jwt.verify(token, siteCfg.secret, function(err, decoded) {
-      if (err) {
-        console.error(err);
-        return null;
-      }
-
-      console.log("Storing user for token:", decoded);
-      let user = decoded;
-      user.token = token;
-      user.authenticated = true;
-      return user;
-    });
-
-    return result;
-  }
 
   listener.get('/projects', async (request, reply) => {
     let user = getAuth(request);
