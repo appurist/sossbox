@@ -2,7 +2,7 @@ const path = require('path');
 const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
-const fastifyStatic = require('fastify-static')
+const fastifyStatic = require('fastify-static');
 
 const io = require('./io');
 const config = require('./config');
@@ -62,7 +62,7 @@ function initRoutes(siteCfg) {
       }
       // otherwise fall through on ENOENT
     });
-    let response = { name: config.id, version: packageVersion, motd };
+    let response = { version: packageVersion, id: siteCfg.id, name: siteCfg.name, domain: siteCfg.domain, motd };
     reply.type(JSON_TYPE).send(JSON.stringify(response));    
   })
 
