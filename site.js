@@ -67,6 +67,10 @@ class Site {
     let pn = path.join(this.siteData, folder);
     return await io.jsonGet(pn, fn);
   }
+  async folderGet(folder) {
+    let pn = path.join(this.siteData, folder);
+    return await io.folderGet(pn);
+  }
 
   // this method uses a file system link to associate a login ID with a user UID (folder)
   async userLink(name, who) {

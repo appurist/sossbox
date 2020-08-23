@@ -46,6 +46,19 @@ let packageVersion = require('./package.json').version;
 console.log('SOSSBox '+packageVersion);
 console.log('Node.js '+process.version);
 
+function getAuth(request) {
+  if (!request.headers.hasOwnProperty('authorization'))
+    return false;
+
+  let words = request.headers.authorization.split(' ');
+  return (words[0] === 'Bearer') ? verifyToken (words[1]) : false;
+}
+
+function isAdmin(request) {
+  let user = getAuth(request);
+  return user && user.administrator;
+}
+
 function initRoutes(siteCfg) {
   let listener = siteCfg.listener;
   let mySite = config.getSite(siteCfg.id);
@@ -65,14 +78,6 @@ function initRoutes(siteCfg) {
     let response = { version: packageVersion, id: siteCfg.id, name: siteCfg.name, domain: siteCfg.domain, motd };
     reply.type(JSON_TYPE).send(JSON.stringify(response));    
   })
-
-  function getAuth(request) {
-    if (!request.headers.hasOwnProperty('authorization'))
-      return false;
-
-    let words = request.headers.authorization.split(' ');
-    return (words[0] === 'Bearer') ? verifyToken (words[1]) : false;
-  }
 
   // support the websocket
   listener.get('/updates', { websocket: true }, (connection, req) => {
@@ -94,6 +99,11 @@ function initRoutes(siteCfg) {
   })  
 
   listener.get('/users', (request, reply) => {
+    if (!isAdmin(request)) {
+      reply.code(403).send('Forbidden: user is not authorized.');
+      return;
+    }
+
     mySite.folderGet('users').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
