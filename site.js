@@ -171,14 +171,17 @@ class Site {
   }
 
   // like createDoc, but creates a document with credentials that can be checked by serverClient.login()
-  async userDelete(user) {
-    let result1 = await this.userUnlink(user.login);
-    let result2 = await this.userDeleteSubfolders(user.uid);
+  async userDelete(uid) {
+    let user = await this.userByUID(uid);
+    if (user) {
+      let result1 = await this.userUnlink(user.login);
+      let result2 = await this.userDeleteSubfolders(user.uid);
 
-    // TODO: Force-logout all?
+      // TODO: Force-logout all?
 
-    // now, in the top-level server database, create a user record
-    let result3 = await io.folderDelete(this.userFolder(who));
+      // now, in the top-level server database, create a user record
+      let result3 = await io.folderDelete(this.userFolder(who));
+    }
 
     return result1 && result2 && result3;
   }
