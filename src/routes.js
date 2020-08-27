@@ -42,7 +42,7 @@ function handleError(err, request, reply) {
   }
 }
 
-let packageVersion = require('./package.json').version;
+let packageVersion = require('../package.json').version;
 console.log('SOSSBox '+packageVersion);
 console.log('Node.js '+process.version);
 

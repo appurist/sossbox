@@ -3,11 +3,10 @@ const path = require('path')
 const fastify = require('fastify')
 const fastifyStatic = require('fastify-static');
 
-const io = require('./io')
-const config = require('./config')
-const Site = require('./site')
+const io = require('./src/io')
+const config = require('./src/config')
 
-const routes = require('./routes')
+const routes = require('./src/routes')
 
 const KEY_FILE = 'server.key'
 const CRT_FILE = 'server.crt'
