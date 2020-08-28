@@ -9,7 +9,7 @@
     "build:win": "pkg -t latest-win-x64 main.js -o sossbox.exe",
     "build:linux": "pkg -t latest-linux-x64 main.js -o sossbox",
     "build:mac": "pkg -t latest-macos-x64 main.js -o sossbox-macos",
-    "test": "echo no tests available."
+    "test": "jest"
   },
   "engines": {
     "node": ">= 12.x"
@@ -43,7 +43,7 @@
     "ws": "^7.3.1"
   },
   "devDependencies": {
-    "cypress": "^5.0.0",
-    "pkg": "^4.4.9"
+    "jest": "^26.4.2",
+    "pkg": "^4.4.9",
   }
 }
