@@ -51,7 +51,7 @@ async function initListener(id, options) {
 
   listener.setErrorHandler(function (error, request, reply) {
     // Send error response
-    console.warn(`${siteCfg.id}: error handler for`,error);
+    console.warn(`${id}: error handler for`,error);
     let code = 500;
     let message = 'Unknown server error';
     if (error.statusCode)
