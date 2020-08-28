@@ -45,5 +45,6 @@
   "devDependencies": {
     "jest": "^26.4.2",
     "pkg": "^4.4.9",
+    "supertest": "^4.0.2"
   }
 }

@@ -92,14 +92,17 @@ async function serverInit() {
     return null;
   }
 
+  let mainListener = undefined;
+
   if (io.folderExists(process.cwd(), PUBLIC_FOLDER)) {
     let baseFolder = process.cwd();
+    let serveFolder = path.join(baseFolder, PUBLIC_FOLDER);
     let sslPath = path.join(baseFolder, 'ssl');
     let options = await getListenerOptions(config.id, sslPath);
-    let listener = await initListener(config.id, options);
-    let serveFolder = path.join(baseFolder, PUBLIC_FOLDER);
+    mainListener = await initListener(config.id, options);
     console.log("Serving top-level static public files from", serveFolder);
-    listener.register(fastifyStatic, {
+
+    mainListener.register(fastifyStatic, {
       root: serveFolder,
       list: false,
       prefix: '/'
@@ -108,9 +111,9 @@ async function serverInit() {
     let host = '0.0.0.0'; // all NICs
     let port = options.https ? 443 : 80;
     // Actually start listening on the port now.
-    listenerStart(listener, config.id, host, port);
+    listenerStart(mainListener, config.id, host, port);
   } else {
-    listener.get('/', (request, reply) => {
+    mainListener.get('/', (request, reply) => {
       reply.send('You have reached the API server for '+siteCfg.domain)
     })
   }
@@ -122,10 +125,10 @@ async function serverInit() {
 
     let sslPath = path.join(siteData, 'ssl');
     let options = await getListenerOptions(siteCfg.id, sslPath);
-    let listener = await initListener(siteCfg.id, options);
+    let siteListener = await initListener(siteCfg.id, options);
 
-    // Save the fastify listener for easy access.
-    siteCfg.listener = listener;
+    // Save the fastify siteListener for easy access.
+    siteCfg.listener = siteListener;
     // Initialize the Fastify REST API endpoints.
     routes.initRoutes(siteCfg);
 
@@ -135,15 +138,18 @@ async function serverInit() {
     }
 
     // Actually start listening on the port now.
-    listenerStart(listener, siteCfg.id, siteCfg.host, siteCfg.port);
-    return listener;
+    listenerStart(siteListener, siteCfg.id, siteCfg.host, siteCfg.port);
+    return siteListener;
   });
+
+  return mainListener;
 }
 
 // Mainline / top-level async function invocation.
 (async () => {
   try {
-    let server = await serverInit();  // returns a fastify instance
+    let mainListener = await serverInit();  // returns a fastify instance
+    console.log("Server listener:", mainListener)
   } catch (e) {
       console.error(e);
   }
