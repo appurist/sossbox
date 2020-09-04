@@ -2,12 +2,13 @@ const path = require('path');
 const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
-const fastifyStatic = require('fastify-static');
 
 const io = require('./io');
 const config = require('./config');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
+
+let hasPublicFolder = false;
 
 // pass null for reply if it should not send the reply automatically
 function handleError(err, request, reply) {
@@ -80,8 +81,10 @@ function initRoutes(siteCfg) {
     return user && user.administrator;
   }
     
+  let prefix = mySite.prefix || '';
+
   // Declare a route
-  listener.get('/status', (request, reply) => {
+  listener.get(prefix+'/status', (request, reply) => {
     let motd = '';
     mySite.fileGet('', 'motd.md').then(motdText => {
       motd = motdText;
@@ -98,7 +101,7 @@ function initRoutes(siteCfg) {
   })
 
   // support the websocket
-  listener.get('/updates', { websocket: true }, (connection, req) => {
+  listener.get(prefix+'/updates', { websocket: true }, (connection, req) => {
     console.log("socket connected.");
     connection.socket.on('message', (message) => {
       if (message.startsWith('user,')) {
@@ -116,7 +119,7 @@ function initRoutes(siteCfg) {
     })
   })  
 
-  listener.get('/users', (request, reply) => {
+  listener.get(prefix+'/users', (request, reply) => {
     if (!isAdmin(request)) {
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
@@ -134,7 +137,7 @@ function initRoutes(siteCfg) {
 
 
   // Same as /users/:myID but with an implicit ID
-  listener.get('/profile', async (request, reply) => {
+  listener.get(prefix+'/profile', async (request, reply) => {
     let user = getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -145,7 +148,7 @@ function initRoutes(siteCfg) {
   })
 
   // Same as /users/:myID but with an implicit ID
-  listener.put('/profile', async (request, reply) => {
+  listener.put(prefix+'/profile', async (request, reply) => {
     let user = getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -158,7 +161,7 @@ function initRoutes(siteCfg) {
     reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
   })
 
-  listener.get('/users/:loginName', (request, reply) => {
+  listener.get(prefix+'/users/:loginName', (request, reply) => {
     let user = getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -177,7 +180,7 @@ function initRoutes(siteCfg) {
   })
 
   // This is user add (a.k.a. signup or registration)
-  listener.post('/users', (request, reply) => {
+  listener.post(prefix+'/users', (request, reply) => {
     let uid = uuid();
     let credentials = { hash: md5(request.body.password) };
     let user = Object.assign({ uid }, request.body);
@@ -199,7 +202,7 @@ function initRoutes(siteCfg) {
     });
   })
 
-  listener.delete('/users/:uid', (request, reply) => {
+  listener.delete(prefix+'/users/:uid', (request, reply) => {
     let user = getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -218,7 +221,7 @@ function initRoutes(siteCfg) {
     });
   });
 
-  listener.post('/login', (request, reply) => {
+  listener.post(prefix+'/login', (request, reply) => {
     if (!siteCfg.secret) {
       console.error(`${siteCfg.id}: secret is not set.`);
       return false;
@@ -244,7 +247,7 @@ function initRoutes(siteCfg) {
     });
   });
 
-  listener.post('/logout', (request, reply) => {
+  listener.post(prefix+'/logout', (request, reply) => {
     let user = getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -255,7 +258,7 @@ function initRoutes(siteCfg) {
     reply.type(JSON_TYPE).send(JSON.stringify(response));    
   });
 
-  listener.get('/projects', async (request, reply) => {
+  listener.get(prefix+'/projects', async (request, reply) => {
     let user = getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -271,7 +274,7 @@ function initRoutes(siteCfg) {
     });
   })
 
-  listener.get('/projects/:id', async (request, reply) => {
+  listener.get(prefix+'/projects/:id', async (request, reply) => {
     let user = await getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -286,7 +289,7 @@ function initRoutes(siteCfg) {
     });
   })
 
-  listener.post('/projects', async (request, reply) => {
+  listener.post(prefix+'/projects', async (request, reply) => {
     let user = await getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -307,7 +310,7 @@ function initRoutes(siteCfg) {
     });
   })
 
-  listener.delete('/projects/:uid', async (request, reply) => {
+  listener.delete(prefix+'/projects/:uid', async (request, reply) => {
     let user = await getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -323,23 +326,6 @@ function initRoutes(siteCfg) {
     });
   });
 
-
-  // now support serving static files, e.g. a "public" folder, if specified.
-  if (siteCfg.public) {
-    let site = config.getSite(siteCfg.id);
-    let base = site.getSiteBase();
-    let serveFolder = path.join(base, siteCfg.public);
-    console.log("Serving static public files from", serveFolder);
-    listener.register(fastifyStatic, {
-      root: serveFolder,
-      list: true,
-      prefix: '/'
-    })
-  } else {
-    listener.get('/', (request, reply) => {
-      reply.send('You have reached the API server for '+siteCfg.domain)
-    })
-  }
 
   // Add a hook for logging.
   /*

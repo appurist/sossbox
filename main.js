@@ -13,7 +13,10 @@ const CRT_FILE = 'server.crt'
 const PUBLIC_FOLDER = 'public'
 
 let serverCfg = undefined;
+let mainListener = undefined;
+let mainSite = undefined;
 
+// Returns the SSL or non-SSL related options
 async function getListenerOptions(id, sslPath) {
   let options = { logger: false };
   let sslOptions = undefined;
@@ -77,11 +80,8 @@ function listenerStart(listener, id, host, port) {
     console.log(`${id}: listening on port ${port}.`);
   })
 
-  /*
-  listener.ready(() => {
-    console.log(listener.printRoutes())
-  })
-  */
+  // dump routes at startup?
+  // listener.ready(() => { console.log(listener.printRoutes()) })
 }
 
 // Returns the fastify instance on success.
@@ -92,55 +92,97 @@ async function serverInit() {
     return null;
   }
 
-  let mainListener = undefined;
-
-  if (io.folderExists(process.cwd(), PUBLIC_FOLDER)) {
-    let baseFolder = process.cwd();
-    let serveFolder = path.join(baseFolder, PUBLIC_FOLDER);
-    let sslPath = path.join(baseFolder, 'ssl');
-    let options = await getListenerOptions(config.id, sslPath);
-    mainListener = await initListener(config.id, options);
-    console.log("Serving top-level static public files from", serveFolder);
-
-    mainListener.register(fastifyStatic, {
-      root: serveFolder,
-      list: false,
-      prefix: '/'
-    })
-    // If port is 0, default to the standard HTTP or HTTPS ports for web servers.
-    let host = '0.0.0.0'; // all NICs
-    let port = options.https ? 443 : 80;
-    // Actually start listening on the port now.
-    listenerStart(mainListener, config.id, host, port);
-  } else {
-    mainListener.get('/', (request, reply) => {
-      reply.send('You have reached the API server for '+siteCfg.domain)
-    })
-  }
-
   // Loop over the listeners and initialize routes.
   await config.forEachSiteAsync (async (site) => {
     let siteCfg = site.getSiteCfg();
     let siteData = site.getSiteData();
+    let base = site.getSiteBase();
 
-    let sslPath = path.join(siteData, 'ssl');
-    let options = await getListenerOptions(siteCfg.id, sslPath);
-    let siteListener = await initListener(siteCfg.id, options);
+    if (siteCfg.port !== 0) {
+      let sslPath = path.join(siteData, 'ssl');
+      let options = await getListenerOptions(siteCfg.id, sslPath);
+      // Save the fastify site listener for easy access.
+      siteCfg.listener = await initListener(siteCfg.id, options);
+    } else {
+      // for this site, reuse the main listener
+      let baseFolder = base;
+      let sslPath = path.join(baseFolder, 'ssl');  
+      let options = await getListenerOptions(siteCfg.id, sslPath);
+   
+      mainListener = await initListener(siteCfg.id, options);
+      console.log("Serving top-level static public files from", path.join(baseFolder, PUBLIC_FOLDER));
+      siteCfg.listener = mainListener;
+    }
 
-    // Save the fastify siteListener for easy access.
-    siteCfg.listener = siteListener;
     // Initialize the Fastify REST API endpoints.
     routes.initRoutes(siteCfg);
 
-    // If port is 0, default to the standard HTTP or HTTPS ports for web servers.
-    if (siteCfg.port === 0) {
-      siteCfg.port = options.https ? 443 : 80;
+    // now support serving static files, e.g. a "public" folder, if specified.
+    if (siteCfg.public) {
+      let prefix = siteCfg.prefix || '/'+siteCfg.id;
+      if (siteCfg.port === 0 && mainSite) {
+        console.error(`${siteCfg.id}: public static files cannot be used with port 0 specified more than once. '${mainSite.id} already defines one.`)
+      } else
+      if (siteCfg.listener != mainListener) {
+        let serveFolder = path.join(base, siteCfg.public);
+        console.log("Serving static public files from", serveFolder);
+        siteCfg.listener.register(fastifyStatic, {
+          root: serveFolder,
+          list: true,
+          prefix: prefix
+        })
+      } else {
+        if (siteCfg.listener != mainListener) {
+          siteCfg.listener.get(route, (request, reply) => {
+            reply.send('You have reached the API server for '+siteCfg.domain)
+          })
+        }
+      }
     }
 
-    // Actually start listening on the port now.
-    listenerStart(siteListener, siteCfg.id, siteCfg.host, siteCfg.port);
-    return siteListener;
+    // If port is 0, just passively use the mainListener.
+    if (siteCfg.port !== 0) {
+      // Actually start listening on the port now.
+      listenerStart(siteCfg.listener, siteCfg.id, siteCfg.host, siteCfg.port);
+    }
+    return siteCfg.listener;
   });
+
+  // Top-level site?
+  if (io.folderExists(process.cwd(), PUBLIC_FOLDER)) {
+    let baseFolder = process.cwd();
+    let serveFolder = path.join(baseFolder, PUBLIC_FOLDER);
+    let sslPath = path.join(baseFolder, 'ssl');  
+    let options = await getListenerOptions('main', sslPath);
+    if (mainSite) {
+      console.error(`main: public static files cannot be used when '${mainSite.id} already defines one.`)
+    } else {
+      if (!mainListener) {
+        mainListener = await initListener('main', options);
+        console.log("Serving top-level static public files from", serveFolder);
+
+        mainListener.register(fastifyStatic, {
+          root: serveFolder,
+          list: false,
+          prefix: '/'
+        })
+      }
+    }
+
+    if (!mainSite) {
+      // If port is 0, default to the standard HTTP or HTTPS ports for web servers.
+      let host = '0.0.0.0'; // all NICs
+      let port = options.https ? 443 : 80;
+      // Actually start listening on the port now.
+      listenerStart(mainListener, serverCfg.id, host, port);
+    }
+  } else {
+    if (!mainSite) {
+      mainListener.get('/', (request, reply) => {
+      reply.send('You have reached the API server for '+siteCfg.domain)
+      });
+    }
+  }
 
   return mainListener;
 }

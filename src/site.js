@@ -25,16 +25,20 @@ class Site {
   // pass in the per-site config including the relative/absolute data folder.
   async initSiteData(siteCfg) {
     this.siteCfg = Object.assign({}, siteCfg);
-    this.data = siteCfg.data; // possibly complete different location than sitebase, or the same.
+    this.data = this.siteCfg.data; // possibly complete different location than sitebase, or the same.
 
     // shorter convenience aliases
-    this.id = siteCfg.id;
-    this.name = siteCfg.name;
-    this.domain = siteCfg.domain;
-    this.port = siteCfg.port;
-    this.register = siteCfg.register;
-    this.public = siteCfg.public;
-    this.host = siteCfg.host;
+    this.id = this.siteCfg.id;
+    this.name = this.siteCfg.name;
+    this.domain = this.siteCfg.domain;
+    this.port = this.siteCfg.port;
+    this.register = this.siteCfg.register;
+    this.public = this.siteCfg.public;
+    this.host = this.siteCfg.host;
+    this.prefix = this.siteCfg.prefix;
+    // This feature uses 'port', 'domain' and 'prefix' fields. If a prefix is specified, it is prepended to the route URL before the route
+    // (e.g. api.blah.com subdomain in 'domain', plus a '/sitename' prefix and '/status' becomes `https://api.blah.com/sitename/status') 
+    // and the main listener is used (this port is ignored).
 
     // now determine where the per-site data actually is
     let result = this.siteBase; // default to the same folder for data and site folder
