@@ -122,21 +122,15 @@ async function serverInit() {
       let prefix = siteCfg.prefix || '/'+siteCfg.id;
       if (siteCfg.port === 0 && mainSite) {
         console.error(`${siteCfg.id}: public static files cannot be used with port 0 specified more than once. '${mainSite.id} already defines one.`)
-      } else
-      if (siteCfg.listener != mainListener) {
+      } else {
         let serveFolder = path.join(base, siteCfg.public);
         console.log("Serving static public files from", serveFolder);
         siteCfg.listener.register(fastifyStatic, {
           root: serveFolder,
           list: true,
-          prefix: prefix
+          prefix: prefix,
+          redirect: true  // redirect /prefix to /prefix/ to allow file peers to work
         })
-      } else {
-        if (siteCfg.listener != mainListener) {
-          siteCfg.listener.get(route, (request, reply) => {
-            reply.send('You have reached the API server for '+siteCfg.domain)
-          })
-        }
       }
     }
 
@@ -190,9 +184,8 @@ async function serverInit() {
 // Mainline / top-level async function invocation.
 (async () => {
   try {
-    let mainListener = await serverInit();  // returns a fastify instance
-    console.log("Server listener:", mainListener)
+    await serverInit();  // returns a fastify instance
   } catch (e) {
-      console.error(e);
+    console.error(e);
   }
 })();
