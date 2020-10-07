@@ -64,7 +64,6 @@ yarn\.lock
 
 dist/
 data/
-sossbox.cfg
 
 #but include these in the git repo
 sites/*
