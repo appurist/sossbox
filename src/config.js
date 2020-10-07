@@ -33,23 +33,23 @@ const DEFAULT_SITE = {
 async function init() {
   cfg = Object.assign({}, DEFAULT_CFG, await io.jsonGet('', SERVER_CFG));
   let currentFolder = process.cwd();  // was __dirname but when packaged that is "/snapshot/"
-  let sitesFolder = await Site.resolveSiteBase(currentFolder, cfg.sites);
+  let sitesFolder = Site.resolveSiteBase(currentFolder, cfg.sites);
   console.log("Root storage will be at:", sitesFolder);
 
 
   let siteFolders = await io.folderGet(sitesFolder);
   for (let folder of siteFolders) {
     let site = new Site(sitesFolder, folder);
-    let siteBase = site.getSiteBase();
-    let rawCfg = await io.jsonGet(siteBase, SITE_CFG);
+    let sitePath = site.getSitePath();
+    let rawCfg = await io.jsonGet(sitePath, SITE_CFG);
     siteCfg = Object.assign({}, DEFAULT_SITE, rawCfg);
 
     // initSiteData returns the resolved path to the per-site data folder.
     let siteData = await site.initSiteData(siteCfg);  // create if needed and return path
 
     if (siteCfg) {  // cache it in the siteMap
-      siteMap.set(folder, site);
-      console.log(`Storage ready for '${siteCfg.name}': ${siteData}`);
+      siteMap.set(siteCfg.id, site);
+      console.log(`Storage ready for '${siteCfg.name}' ('${siteCfg.id}'): ${siteData}`);
     }
   }
 

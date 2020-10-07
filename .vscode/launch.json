@@ -9,6 +9,7 @@
       "request": "launch",
       "name": "Launch Program",
       "program": "${workspaceFolder}/main.js",
+      // "args": ["--dump"],
       "skipFiles": [
         "<node_internals>/**"
       ]

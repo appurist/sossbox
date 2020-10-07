@@ -8,8 +8,6 @@ const config = require('./config');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
 
-let hasPublicFolder = false;
-
 // pass null for reply if it should not send the reply automatically
 function handleError(err, request, reply) {
   if (!err.requestResult) {
@@ -84,6 +82,7 @@ function initRoutes(siteCfg) {
   let prefix = mySite.prefix || '';
 
   // Declare a route
+  console.log(`Route for ${listener.port}:`,prefix+'/status')
   listener.get(prefix+'/status', (request, reply) => {
     let motd = '';
     mySite.fileGet('', 'motd.md').then(motdText => {

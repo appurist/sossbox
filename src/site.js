@@ -7,14 +7,16 @@ let debug_level = 0;
 
 class Site {
   constructor(sites, folder) {
-    this.siteBase = Site.resolveSiteBase(sites, folder);
-    this.siteData = this.siteBase; // default to the same folder
+    this.siteFolder = folder;
+    this.sitePath = Site.resolveSiteBase(sites, folder);
+    this.siteData = this.sitePath; // default to the same folder
     this.siteCfg = { };
   }
 
   getSiteId()  { return this.id; }
   getSiteCfg() { return this.siteCfg; }
-  getSiteBase() { return this.siteBase; }
+  getSitePath() { return this.sitePath; }
+  getSiteFolder() { return this.siteFolder; }
   getSiteData() { return this.siteData; }
 
   static resolveSiteBase(absPath, relPath) {
@@ -25,7 +27,7 @@ class Site {
   // pass in the per-site config including the relative/absolute data folder.
   async initSiteData(siteCfg) {
     this.siteCfg = Object.assign({}, siteCfg);
-    this.data = this.siteCfg.data; // possibly complete different location than sitebase, or the same.
+    this.data = this.siteCfg.data; // possibly complete different location than sitePath, or the same.
 
     // shorter convenience aliases
     this.id = this.siteCfg.id;
@@ -41,15 +43,15 @@ class Site {
     // and the main listener is used (this port is ignored).
 
     // now determine where the per-site data actually is
-    let result = this.siteBase; // default to the same folder for data and site folder
+    let result = this.sitePath; // default to the same folder for data and site folder
     if (this.data) {
       if (path.isAbsolute(this.data)) {
         result = path.resolve(this.data);
       } else {
-        result = path.resolve(this.siteBase, this.data);
+        result = path.resolve(this.sitePath, this.data);
       }
     } else {
-      result = path.resolve(this.siteBase);
+      result = path.resolve(this.sitePath);
     }
     this.siteData = result;
 
