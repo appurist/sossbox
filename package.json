@@ -2,13 +2,13 @@
   "name": "sossbox",
   "version": "1.0.822",
   "description": "A Simple Online Storage Server.",
-  "main": "main.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node main.js",
-    "build": "pkg main.js -o dist/",
-    "build:win": "pkg -t latest-win-x64 main.js -o sossbox.exe",
-    "build:linux": "pkg -t latest-linux-x64 main.js -o sossbox",
-    "build:mac": "pkg -t latest-macos-x64 main.js -o sossbox-macos",
+    "start": "node server.js",
+    "build": "pkg server.js -o dist/",
+    "build:win": "pkg -t latest-win-x64 server.js -o sossbox.exe",
+    "build:linux": "pkg -t latest-linux-x64 server.js -o sossbox",
+    "build:mac": "pkg -t latest-macos-x64 server.js -o sossbox-macos",
     "test": "jest"
   },
   "engines": {

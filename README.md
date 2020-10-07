@@ -5,7 +5,7 @@ A simple online storage server.
 
 To start the server without yarn:
 ```
-node main.js
+node server.js
 ```
 
 To initialize the development environment (dependencies):

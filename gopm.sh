@@ -1,1 +1,1 @@
-pm2 start /home/api/sossbox/main.js --name sossbox --log sossbox.log
+pm2 start /home/api/sossbox/server.js --name sossbox --log sossbox.log
