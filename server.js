@@ -164,24 +164,25 @@ async function serverInit() {
   let options = await getListenerOptions('main', sslPath);
   let port = serverCfg.port || options.https ? 443 : 80;
   let host = serverCfg.host || '0.0.0.0'; // all NICs
+
+  if (!mainListener) {
+    mainListener = await initListener('main', options);
+  }
+  
   if (await io.folderExists(baseFolder, PUBLIC_FOLDER)) {
     let prefix = '/';
     if (mainRoutes.has(prefix)) { // (mainSite) {
-      console.error(`main: public static files ignored, cannot be used when '${mainSite.id} already defines one.`)
-    }
-    
-    if (!mainListener) {
-      mainListener = await initListener('main', options);
+      console.error(`main: public static files ignored, cannot be used when '${mainSite.id} already defines one at ${prefix}.`)
+    } else {
       console.log("Serving top-level static public files from", serveFolder);
+      mainRoutes.add(prefix);
+      // If port is 0, default to the standard HTTP or HTTPS ports for web servers.
+      mainListener.register(fastifyStatic, {
+        root: serveFolder,
+        list: false,
+        prefix
+      })
     }
-    
-    mainRoutes.add(prefix);
-    // If port is 0, default to the standard HTTP or HTTPS ports for web servers.
-    mainListener.register(fastifyStatic, {
-      root: serveFolder,
-      list: false,
-      prefix
-    })
   } else {
     if (!mainSite) {
       console.log(`Serving default site for port [${port}] at '/'.`);
