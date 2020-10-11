@@ -11,9 +11,10 @@ async function pathStat(folder, fn) {
     return null;
   }
 }
-async function folderExists(folder) {
+// fn is optional below
+async function folderExists(folder, fn) {
   try {
-    let pn = path.resolve(folder);
+    let pn = path.resolve(folder, fn);
     let stat=await fsPromises.stat(pn);
     return stat.isDirectory();
   } catch (e) {
