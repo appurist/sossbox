@@ -154,8 +154,8 @@ async function serverInit() {
   let serveFolder = path.join(baseFolder, PUBLIC_FOLDER);
   let sslPath = path.join(baseFolder, 'ssl');  
   let options = await getListenerOptions('main', sslPath);
-  let port = options.https ? 443 : 80;
-  let host = '0.0.0.0'; // all NICs
+  let port = serverCfg.port || options.https ? 443 : 80;
+  let host = serverCfg.host || '0.0.0.0'; // all NICs
   if (io.folderExists(baseFolder, PUBLIC_FOLDER)) {
     let prefix = '/';
     if (mainRoutes.has(prefix)) { // (mainSite) {
@@ -185,11 +185,15 @@ async function serverInit() {
     }
   }
 
-  console.log(`Top-level routes on port ${port}:`);
+  console.log(`main: top-routes are:`);
   mainRoutes.forEach( r => console.log(' '+r))
 
   // Actually start listening on the port now.
-  listenerStart(mainListener, 'main', host, port);
+  try {
+    listenerStart(mainListener, 'main', host, port);
+  } catch (err) {
+    console.error(err.message)
+  }
   return mainListener;
 }
 
