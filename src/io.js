@@ -123,21 +123,32 @@ async function fileDelete(folder, fn) {
 
 // This is just a JSON read and parse except it supports '#' as a line-based comment.
 async function jsonGet(pn, fn) {
+  let jsonLines = [];
   try {
-               
     let text = await fileGet(pn, fn);
     let lines = text.replace(/\r\n/g,'\n').split('\n');
-    let jsonLines = [];
     for (let line of lines) {
-      if (!line.trim().startsWith('#')) {
+      let x = line.indexOf('#');
+      line = (x < 0) ? line : line.substring(0, x);
+      line = line.trim();
+      if (line.length > 0)
         jsonLines.push(line);
-      }
     }
-    let json = jsonLines.join('\n');
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return null;
+    }
+    console.error(`${fn}: ${err.message}`);
+    process.exit(1);
+  }
+
+  try {
+    let json = jsonLines.join('');
     cfg = JSON.parse(json);
     return cfg;
   } catch (err) {
-    console.error(err);
+    console.error(`${fn}: ${err.message}`);
+    process.exit(2);
   }
   return null;
 }
