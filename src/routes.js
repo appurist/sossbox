@@ -97,7 +97,7 @@ function initRoutes(siteCfg) {
       motd: ''
     };
     try {
-      response.motd = await mySite.fileGet('', 'motd.md');
+      response.motd = await mySite.fileGet('.', 'motd.md');
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     } catch (err) {
       if (err.code !== 'ENOENT') {
@@ -253,7 +253,7 @@ function initRoutes(siteCfg) {
         reply.code(401).send('Authentication failed, invalid password.');
         return;
       }
-      mySite.fileGet('', 'motd.md').then(motd => {
+      mySite.fileGet('.', 'motd.md').then(motd => {
         let response = Object.assign({ }, userRec.user)
         response.token = jwt.sign(userRec.user, siteCfg.secret, { issuer: siteCfg.id})
         // The token does not include more than basic user.

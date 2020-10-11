@@ -35,7 +35,7 @@ async function initSiteStorage(site, siteCfg) {
 }
 
 async function init() {
-  let configOverrides = await io.jsonGet('', SERVER_CFG) || {};
+  let configOverrides = await io.jsonGet('.', SERVER_CFG) || {};
   mainCfg = Object.assign({}, DEFAULT_CFG, configOverrides);
 
   // init the main site
