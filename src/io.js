@@ -126,6 +126,7 @@ async function fileDelete(folder, fn) {
 async function jsonGet(pn, fn) {
   let jsonLines = [];
   try {
+    if (pn === '') pn = '.';
     let text = await fileGet(pn, fn);
     let lines = text.replace(/\r\n/g,'\n').split('\n');
     for (let line of lines) {
@@ -139,7 +140,7 @@ async function jsonGet(pn, fn) {
     if (err.code === 'ENOENT') {
       return null;
     }
-    console.error(`${fn}: ${err.message}`);
+    console.error(`${fn}: ${err.message} for ${pn}`);
     process.exit(1);
   }
 
@@ -148,7 +149,7 @@ async function jsonGet(pn, fn) {
     cfg = JSON.parse(json);
     return cfg;
   } catch (err) {
-    console.error(`${fn}: ${err.message}`);
+    console.error(`${fn}: ${err.message} for ${pn}`);
     process.exit(2);
   }
   return null;
