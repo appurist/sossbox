@@ -55,9 +55,9 @@ async function init() {
     let site = new Site(sitesFolder, folder);
     let sitePath = site.getSitePath();
     let rawCfg = await io.jsonGet(sitePath, SITE_CFG);
-    siteCfg = Object.assign({}, DEFAULT_SITE, rawCfg);
+    let siteCfg = Object.assign({}, DEFAULT_SITE, rawCfg);
 
-    await initSiteStorage(site);
+    await initSiteStorage(site, siteCfg);
   }
 
   return mainCfg;
