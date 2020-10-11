@@ -43,7 +43,7 @@ function handleError(err, request, reply) {
 
 let packageVersion = require('../package.json').version;
 console.log('SOSSBox '+packageVersion);
-console.log('Node.js '+process.version);
+// console.log('Node.js '+process.version);
 
 function initRoutes(siteCfg) {
   let listener = siteCfg.listener;
@@ -294,7 +294,6 @@ function initRoutes(siteCfg) {
       reply.code(401).send('Not authorized.');
       return;
     }
-
 
     let uid = request.body.uid || uuid();
     let proj = Object.assign({ uid }, request.body);
