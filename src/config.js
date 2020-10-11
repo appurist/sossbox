@@ -3,15 +3,9 @@ const Site = require('./site');
 
 const SERVER_CFG = 'sossbox.cfg';
 const SITE_CFG = 'site.cfg';
-
+const DEFAULT_CFG = { name: 'SOSSBox Server', host: '0.0.0.0', port: 0 }
 let cfg = { };
 let siteMap = new Map;  // note this is a Map, use set() and get()
-
-// config has name and sites (folder)
-const DEFAULT_CFG = {
-  name: 'SOSSBox Server',
-  sites: './sites'
-}
 
 // each site has id, name and sites (folder)
 const DEFAULT_SITE = {
@@ -31,10 +25,13 @@ const DEFAULT_SITE = {
 }
 
 async function init() {
-  cfg = Object.assign({}, DEFAULT_CFG, await io.jsonGet('', SERVER_CFG));
+  let configOverrides = await io.jsonGet('', SERVER_CFG) || {};
+  cfg = Object.assign({}, DEFAULT_CFG, configOverrides);
+  if (!cfg.sites) return cfg; // no sub-sites
+
   let currentFolder = process.cwd();  // was __dirname but when packaged that is "/snapshot/"
   let sitesFolder = Site.resolveSiteBase(currentFolder, cfg.sites);
-  console.log("Root storage will be at:", sitesFolder);
+  console.log("Sites storage is at:", sitesFolder);
 
 
   let siteFolders = await io.folderGet(sitesFolder);
