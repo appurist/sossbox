@@ -34,7 +34,8 @@ class Site {
     this.name = this.siteCfg.name;
     this.domain = this.siteCfg.domain;
     this.port = this.siteCfg.port;
-    this.register = this.siteCfg.register;
+    this.storage = this.siteCfg.storage;            // enable SOSS REST enpoints?
+    this.registration = this.siteCfg.registration;  // if storage, enable user registration too?
     this.public = this.siteCfg.public;
     this.host = this.siteCfg.host;
     this.prefix = this.siteCfg.prefix;

@@ -16,7 +16,7 @@ const DEFAULT_SITE = {
   // Site installation CAN update these to something more appropriate for that site.
   name: 'SOSSBox',
   port: 23232,
-  register: true,
+  registration: true,
   public: "public",
 
   // Site installation CAN update these to something else if the effects are understood.
@@ -24,15 +24,31 @@ const DEFAULT_SITE = {
   host: '0.0.0.0'
 }
 
+async function initSiteStorage(site, siteCfg) {
+  // initSiteData returns the resolved path to the per-site data folder.
+  let siteData = await site.initSiteData(siteCfg);  // create if needed and return path
+
+  if (siteCfg) {  // cache it in the siteMap
+    siteMap.set(siteCfg.id, site);
+    console.log(`Storage ready for '${siteCfg.name}' ('${siteCfg.id}'): ${siteData}`);
+  }
+}
+
 async function init() {
   let configOverrides = await io.jsonGet('', SERVER_CFG) || {};
-  cfg = Object.assign({}, DEFAULT_CFG, configOverrides);
-  if (!cfg.sites) return cfg; // no sub-sites
+  mainCfg = Object.assign({}, DEFAULT_CFG, configOverrides);
+
+  // init the main site
+  if (mainCfg.storage) {
+    let mainSite = new Site(process.cwd(), 'data');
+    await initSiteStorage(mainSite, mainCfg);
+  }
+
+  if (!mainCfg.sites) return mainCfg; // no sub-sites
 
   let currentFolder = process.cwd();  // was __dirname but when packaged that is "/snapshot/"
-  let sitesFolder = Site.resolveSiteBase(currentFolder, cfg.sites);
+  let sitesFolder = Site.resolveSiteBase(currentFolder, mainCfg.sites);
   console.log("Sites storage is at:", sitesFolder);
-
 
   let siteFolders = await io.folderGet(sitesFolder);
   for (let folder of siteFolders) {
@@ -41,16 +57,10 @@ async function init() {
     let rawCfg = await io.jsonGet(sitePath, SITE_CFG);
     siteCfg = Object.assign({}, DEFAULT_SITE, rawCfg);
 
-    // initSiteData returns the resolved path to the per-site data folder.
-    let siteData = await site.initSiteData(siteCfg);  // create if needed and return path
-
-    if (siteCfg) {  // cache it in the siteMap
-      siteMap.set(siteCfg.id, site);
-      console.log(`Storage ready for '${siteCfg.name}' ('${siteCfg.id}'): ${siteData}`);
-    }
+    await initSiteStorage(site);
   }
 
-  return cfg;
+  return mainCfg;
 }
 
 function getConfig() {

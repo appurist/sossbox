@@ -108,20 +108,28 @@ async function serverInit() {
       // Save the fastify site listener for easy access.
       siteCfg.listener = await initListener(siteCfg.id, options);
     } else {
-      // for this site, reuse the main listener
-      let baseFolder = basePath;
-      let sslPath = path.join(baseFolder, 'ssl');  
-      let options = await getListenerOptions(siteCfg.id, sslPath);
-   
-      mainListener = await initListener(siteCfg.id, options);
-      console.log("Serving top-level static public files from", path.join(baseFolder, PUBLIC_FOLDER));
+      // for this site (port 0), use the main listener
+      if (!mainListener) {
+        let baseFolder = process.cwd();
+        let sslPath = path.join(baseFolder, 'ssl');  
+        let options = await getListenerOptions(siteCfg.id, sslPath);
+        mainListener = await initListener(siteCfg.id, options);
+      }
       siteCfg.listener = mainListener;
     }
 
-    // Initialize the Fastify REST API endpoints.
-    routes.initRoutes(siteCfg);
+    // Initialize the SOSSBox server REST API endpoints.
+    if (siteCfg.storage) {
+      routes.initRoutes(siteCfg);
+    }
 
-    // now support serving static files, e.g. a "public" folder, if specified.
+    // now support optionally serving static files, e.g. a "public" folder, if specified.
+    if (!siteCfg.public) {
+      // check if a public folder exists anyway
+      if (await io.folderExists(basePath, PUBLIC_FOLDER)) {
+        siteCfg.public = PUBLIC_FOLDER;
+      }
+    }
     if (siteCfg.public) {
       let prefix = siteCfg.prefix || '/'+siteCfg.id;
       if (siteCfg.port === 0 && mainRoutes.has(prefix)) {  // (siteCfg.port === 0 && mainSite) {
@@ -156,7 +164,7 @@ async function serverInit() {
   let options = await getListenerOptions('main', sslPath);
   let port = serverCfg.port || options.https ? 443 : 80;
   let host = serverCfg.host || '0.0.0.0'; // all NICs
-  if (io.folderExists(baseFolder, PUBLIC_FOLDER)) {
+  if (await io.folderExists(baseFolder, PUBLIC_FOLDER)) {
     let prefix = '/';
     if (mainRoutes.has(prefix)) { // (mainSite) {
       console.error(`main: public static files ignored, cannot be used when '${mainSite.id} already defines one.`)
@@ -176,11 +184,11 @@ async function serverInit() {
     })
   } else {
     if (!mainSite) {
-      console.log(`Default for ${mainListener.port}:`,'/')
-      console.log(`Serving static files on [${port}] at '/' from ${serveFolder}`);
+      console.log(`Serving default site for port [${port}] at '/'.`);
       mainRoutes.add('/');
       mainListener.get('/', (request, reply) => {
-        reply.send('You have reached the API server for '+siteCfg.domain)
+        let name = serverCfg.domain || serverCfg.id || 'main'
+        reply.send('You have reached the API server for '+name)
       });
     }
   }

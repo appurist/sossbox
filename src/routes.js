@@ -45,9 +45,13 @@ let packageVersion = require('../package.json').version;
 console.log('SOSSBox '+packageVersion);
 // console.log('Node.js '+process.version);
 
+// This initializes the SOSS routes, and optionally user registration if siteCfg.registration is set.
 function initRoutes(siteCfg) {
   let listener = siteCfg.listener;
   let mySite = config.getSite(siteCfg.id);
+  if (!mySite) {
+    console.error(`Could not find id '${siteCfg.id}' in sites table.`)
+  }
 
   // some nested functions so we have siteCfg and mySite
   function verifyToken(token) {
@@ -187,15 +191,17 @@ function initRoutes(siteCfg) {
 
   // This is user add (a.k.a. signup or registration)
   listener.post(prefix+'/users', (request, reply) => {
+    if (!siteCfg.registration) {
+      if (!siteCfg.registration) {
+        reply.code(405).send('New user registration is disabled.');
+        return false;
+      }
+    }
+
     let uid = uuid();
     let credentials = { hash: md5(request.body.password) };
     let user = Object.assign({ uid }, request.body);
     delete user.password; // don't store the original password. especially not in plain text
-
-    if (!siteCfg.register) {
-      reply.code(401).send('New user registration is disabled.');
-      return false;
-    }
 
     // Next, create user with key from tenant storage.
     // Returns the server key (.secret member is the storage token).
@@ -209,6 +215,13 @@ function initRoutes(siteCfg) {
   })
 
   listener.delete(prefix+'/users/:uid', (request, reply) => {
+    if (!siteCfg.registration) {
+      if (!siteCfg.registration) {
+        reply.code(405).send('User account deletion (and registration) is disabled.');
+        return false;
+      }
+    }
+
     let user = getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
