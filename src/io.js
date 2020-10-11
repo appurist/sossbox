@@ -122,6 +122,22 @@ async function fileDelete(folder, fn) {
 
 //////////////////////////////
 
+// This function returns the position of the first '#' AFTER any '#' characters,
+// but handles the case where the '#' comes first.
+function findComment(line) {
+  let x = line.indexOf('#');
+  let q = line.indexOf('"');
+  if (x < 0 || q < 0) return x;
+  if (x < q) return x;
+
+  while (x >= 0) {
+    q = line.indexOf('"', x);
+    if (q < 0) break;
+    x = line.indexOf('#', q);
+  }
+  return x;
+}
+
 // This is just a JSON read and parse except it supports '#' as a line-based comment.
 async function jsonGet(pn, fn) {
   let jsonLines = [];
@@ -130,7 +146,7 @@ async function jsonGet(pn, fn) {
     let text = await fileGet(pn, fn);
     let lines = text.replace(/\r\n/g,'\n').split('\n');
     for (let line of lines) {
-      let x = line.indexOf('#');
+      let x = findComment(line);
       line = (x < 0) ? line : line.substring(0, x);
       line = line.trim();
       if (line.length > 0)
