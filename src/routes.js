@@ -83,20 +83,27 @@ function initRoutes(siteCfg) {
 
   // Declare a route
   console.log(`Route for ${listener.port}:`,prefix+'/status')
-  listener.get(prefix+'/status', (request, reply) => {
-    let motd = '';
-    mySite.fileGet('', 'motd.md').then(motdText => {
-      motd = motdText;
-    }).catch(err => {
+  listener.get(prefix+'/status', async (request, reply) => {
+    let response = {
+      version: packageVersion,
+      id: siteCfg.id,
+      name: siteCfg.name,
+      domain: siteCfg.domain,
+      registration: siteCfg.registration,
+      motd: ''
+    };
+    try {
+      response.motd = await mySite.fileGet('', 'motd.md');
+      reply.type(JSON_TYPE).send(JSON.stringify(response));    
+    } catch (err) {
       if (err.code !== 'ENOENT') {
         console.err("MOTD:", siteCfg.id, err);
         reply.code(500).send('motd.md not found')
         return;
       }
-      // otherwise fall through on ENOENT
-    });
-    let response = { version: packageVersion, id: siteCfg.id, name: siteCfg.name, domain: siteCfg.domain, motd };
-    reply.type(JSON_TYPE).send(JSON.stringify(response));    
+      // otherwise reply without the motd
+      reply.type(JSON_TYPE).send(JSON.stringify(response));    
+    }
   })
 
   // support the websocket
