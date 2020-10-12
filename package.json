@@ -22,7 +22,7 @@
     "SOSSBox"
   ],
   "author": "Appurist Software <dev@appurist.com>",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/appurist/sossbox.git"
