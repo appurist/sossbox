@@ -1,9 +1,7 @@
-const path = require('path');
 const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 
-const io = require('./io');
 const config = require('./config');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
