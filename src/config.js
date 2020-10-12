@@ -44,12 +44,18 @@ async function init() {
     await initSiteStorage(mainSite, mainCfg);
   }
 
-  if (!mainCfg.sites) return mainCfg; // no sub-sites
-
   let currentFolder = process.cwd();  // was __dirname but when packaged that is "/snapshot/"
   let sitesFolder = Site.resolveSiteBase(currentFolder, mainCfg.sites);
-  console.log("Sites storage is at:", sitesFolder);
 
+  if (!mainCfg.sites) {
+    // if no sites specified, check default location
+    if (io.folderExists(currentFolder, "sites")) {
+      mainCfg.sites = "sites";
+    }
+  }
+  if (!mainCfg.sites) return mainCfg; // no sub-sites
+
+  console.log("Sites storage is at:", sitesFolder);
   let siteFolders = await io.folderGet(sitesFolder);
   for (let folder of siteFolders) {
     let site = new Site(sitesFolder, folder);
