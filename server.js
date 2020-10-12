@@ -15,16 +15,16 @@ const PUBLIC_FOLDER = 'public'
 let serverCfg = undefined;
 let mainListener = undefined;
 let mainSite = undefined;
-let publicRoutes = new Set();
+let staticRoutes = new Set();
 let decorated = new Set();
 
 function addPublicRoute(port, prefix) {
-  // console.log(`publicRoutes: adding (${port},${prefix})`);
-  publicRoutes.add({ port, prefix });
+  console.log(`staticRoutes: adding (${port},${prefix})`);
+  staticRoutes.add({ port, prefix });
 }
 function isPublicRoute(port, prefix) {
-  let result = publicRoutes.has({ port, prefix });
-  // console.log(`publicRoutes: has(${port},${prefix})`,result);
+  let result = staticRoutes.has({ port, prefix });
+  // console.log(`staticRoutes: has(${port},${prefix})`,result);
   return result;
 }
 function needsDecoration(port) {
@@ -192,22 +192,24 @@ async function serverInit() {
   
   if (await io.folderExists(baseFolder, PUBLIC_FOLDER)) {
     let prefix = '/';
-    if (publicRoutes.has({ port: 0, prefix})) { // (mainSite) {
+    if (staticRoutes.has({ port: 0, prefix})) { // (mainSite) {
       console.warn(`main: public static files ignored, cannot be used when site '${mainSite.id}' already defines one at ${prefix}.`)
     } else {
       console.log(`${mainSite.id}: Serving static files on port ${mainSite.port} at '${prefix}' from ${serveFolder}`);
-      publicRoutes.add({ port: 0, prefix});
+      staticRoutes.add({ port: 0, prefix});
       // If port is 0, default to the standard HTTP or HTTPS ports for web servers.
       mainListener.register(fastifyStatic, {
         root: serveFolder,
         list: false,
-        prefix
+        prefix,
+        decorateReply: needsDecoration(0) // first one?
       })
+      decorated.add(0);  // mark this one has having decorated during the listener registration (only do that the first time)
     }
   } else {
     if (!mainSite) {
       console.log(`Serving default site for port [${port}] at '/'.`);
-      publicRoutes.add({ port: 0, prefix: '/'});
+      staticRoutes.add({ port: 0, prefix: '/'});
       mainListener.get('/', (request, reply) => {
         let name = serverCfg.domain || serverCfg.id || 'main'
         reply.send('You have reached the API server for '+name)
@@ -216,7 +218,7 @@ async function serverInit() {
   }
 
   console.log(`main: top-routes are:`);
-  publicRoutes.forEach( r => console.log('  '+r.port+': '+r.prefix))
+  staticRoutes.forEach( r => console.log('  '+r.port+': '+r.prefix))
 
   // Actually start listening on the port now.
   try {
