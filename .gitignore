@@ -68,7 +68,9 @@ data/
 #but include these in the git repo
 sites/*
 !sites/example
-!sites/example/*
+!sites/example/**
 !sites/example2
-!sites/example2/*
+!sites/example2/**
+!sites/subsite
+!sites/subsite/**
 
