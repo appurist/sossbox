@@ -49,7 +49,7 @@ async function init() {
 
   if (!mainCfg.sites) {
     // if no sites specified, check default location
-    if (io.folderExists(currentFolder, "sites")) {
+    if (await io.folderExists(currentFolder, "sites")) {
       mainCfg.sites = "sites";
     }
   }
