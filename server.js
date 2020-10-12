@@ -15,7 +15,22 @@ const PUBLIC_FOLDER = 'public'
 let serverCfg = undefined;
 let mainListener = undefined;
 let mainSite = undefined;
-let mainRoutes = new Set();
+let publicRoutes = new Set();
+let decorated = new Set();
+
+function addPublicRoute(port, prefix) {
+  console.log(`publicRoutes: adding (${port},${prefix})`);
+  decorated.add(port);
+  publicRoutes.add({ port, prefix });
+}
+function isPublicRoute(port, prefix) {
+  let result = publicRoutes.has({ port, prefix });
+  console.log(`publicRoutes: has(${port},${prefix})`,result);
+  return result;
+}
+function needsDecoration(port) {
+  return !decorated.has(port);
+}
 
 // Returns the SSL or non-SSL related options
 async function getListenerOptions(id, sslPath) {
@@ -71,6 +86,7 @@ async function initListener(id, options) {
 
 function listenerStart(listener, id, host, port) {
   // Start the server listening.
+  console.log(`${id}: Starting listener on port ${port}`)
   listener.listen(port, host, (err) => {
     if (err) {
       console.error(err.message);
@@ -131,19 +147,24 @@ async function serverInit() {
       }
     }
     if (siteCfg.public) {
-      let prefix = siteCfg.prefix || '/'+siteCfg.id;
-      if (siteCfg.port === 0 && mainRoutes.has(prefix)) {  // (siteCfg.port === 0 && mainSite) {
-        console.error(`${siteCfg.id}: public static files cannot be used with port 0 specified more than once. '${mainSite.id} already defines one.`)
+      let port = siteCfg.port || 0;
+      let prefix = siteCfg.prefix;
+      if (!prefix) {
+        // if no prefix, mount at /siteId for port 0, otherwise at /
+        prefix = (port === 0) ? '/'+siteCfg.id : '/';
+      }
+      if (isPublicRoute(port, prefix)) {  // (siteCfg.port === 0 && mainSite) {
+        console.warn(`${siteCfg.id}: static files cannot be used with port  specified more than once. '${mainSite.id} already defines one.`)
       } else {
         let serveFolder = path.join(basePath, siteCfg.public);
-        console.log(`Serving static files on [${siteCfg.port}] at '${prefix}' from ${serveFolder}`);
-        mainRoutes.add(prefix);
+        console.log(`${siteCfg.id}: Serving static files on port ${siteCfg.port} at '${prefix}' from ${serveFolder}`);
+        addPublicRoute(port, prefix);
         siteCfg.listener.register(fastifyStatic, {
           root: serveFolder,
           list: true,
           prefix: prefix,
           redirect: true,  // redirect /prefix to /prefix/ to allow file peers to work
-          decorateReply: (mainRoutes.size <= 1) // first one?
+          decorateReply: needsDecoration(port) // first one?
         })
         mainSite = siteCfg;
       }
@@ -171,11 +192,11 @@ async function serverInit() {
   
   if (await io.folderExists(baseFolder, PUBLIC_FOLDER)) {
     let prefix = '/';
-    if (mainRoutes.has(prefix)) { // (mainSite) {
-      console.error(`main: public static files ignored, cannot be used when '${mainSite.id} already defines one at ${prefix}.`)
+    if (publicRoutes.has({ port: 0, prefix})) { // (mainSite) {
+      console.warn(`main: public static files ignored, cannot be used when site '${mainSite.id}' already defines one at ${prefix}.`)
     } else {
-      console.log("Serving top-level static public files from", serveFolder);
-      mainRoutes.add(prefix);
+      console.log(`${mainSite.id}: Serving static files on port ${mainSite.port} at '${prefix}' from ${serveFolder}`);
+      publicRoutes.add({ port: 0, prefix});
       // If port is 0, default to the standard HTTP or HTTPS ports for web servers.
       mainListener.register(fastifyStatic, {
         root: serveFolder,
@@ -186,7 +207,7 @@ async function serverInit() {
   } else {
     if (!mainSite) {
       console.log(`Serving default site for port [${port}] at '/'.`);
-      mainRoutes.add('/');
+      publicRoutes.add({ port: 0, prefix: '/'});
       mainListener.get('/', (request, reply) => {
         let name = serverCfg.domain || serverCfg.id || 'main'
         reply.send('You have reached the API server for '+name)
@@ -195,7 +216,7 @@ async function serverInit() {
   }
 
   console.log(`main: top-routes are:`);
-  mainRoutes.forEach( r => console.log(' '+r))
+  publicRoutes.forEach( r => console.log('  '+r.port+': '+r.prefix))
 
   // Actually start listening on the port now.
   try {

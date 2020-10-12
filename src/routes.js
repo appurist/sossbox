@@ -86,7 +86,7 @@ function initRoutes(siteCfg) {
   let prefix = mySite.prefix || '';
 
   // Declare a route
-  console.log(`Route for ${listener.port}:`,prefix+'/status')
+  console.log(`${siteCfg.id}: Route for ${prefix}/status`)
   listener.get(prefix+'/status', async (request, reply) => {
     let response = {
       version: packageVersion,
