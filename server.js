@@ -18,13 +18,12 @@ let mainSite = undefined;
 let staticRoutes = new Set();
 let decorated = new Set();
 
-function addPublicRoute(port, prefix) {
-  console.log(`staticRoutes: adding (${port},${prefix})`);
-  staticRoutes.add({ port, prefix });
+function addStaticRoute(port, prefix) {
+  //console.log(`staticRoutes: adding (${port},${prefix})`);
+  staticRoutes.add(`${port},${prefix}`);
 }
-function isPublicRoute(port, prefix) {
-  let result = staticRoutes.has({ port, prefix });
-  // console.log(`staticRoutes: has(${port},${prefix})`,result);
+function isStaticRoute(port, prefix) {
+  let result = staticRoutes.has(`${port},${prefix}`);
   return result;
 }
 function needsDecoration(port) {
@@ -138,26 +137,23 @@ async function serverInit() {
       routes.initRoutes(siteCfg);
     }
 
+    let publicBase = (siteCfg.listener === mainListener) ? process.cwd() : basePath;
     // now support optionally serving static files, e.g. a "public" folder, if specified.
     if (!siteCfg.public) {
       // check if a public folder exists anyway
-      if (await io.folderExists(basePath, PUBLIC_FOLDER)) {
+      if (await io.folderExists(publicBase, PUBLIC_FOLDER)) {
         siteCfg.public = PUBLIC_FOLDER;
       }
     }
     if (siteCfg.public) {
       let port = siteCfg.port || 0;
-      let prefix = siteCfg.prefix;
-      if (!prefix) {
-        // if no prefix, mount at /siteId for port 0, otherwise at /
-        prefix = (port === 0) ? '/'+siteCfg.id : '/';
-      }
-      if (isPublicRoute(port, prefix)) {  // (siteCfg.port === 0 && mainSite) {
+      let prefix = siteCfg.prefix || '/';
+      if (isStaticRoute(port, prefix)) {  // (siteCfg.port === 0 && mainSite) {
         console.warn(`${siteCfg.id}: static files cannot be used with port  specified more than once. '${mainSite.id} already defines one.`)
       } else {
-        let serveFolder = path.join(basePath, siteCfg.public);
+        let serveFolder = path.join(publicBase, siteCfg.public);
         console.log(`${siteCfg.id}: Serving static files on port ${siteCfg.port} at '${prefix}' from ${serveFolder}`);
-        addPublicRoute(port, prefix);
+        addStaticRoute(port, prefix);
         siteCfg.listener.register(fastifyStatic, {
           root: serveFolder,
           list: true,
@@ -190,35 +186,17 @@ async function serverInit() {
     mainListener = await initListener('main', options);
   }
   
-  if (await io.folderExists(baseFolder, PUBLIC_FOLDER)) {
-    let prefix = '/';
-    if (staticRoutes.has({ port: 0, prefix})) { // (mainSite) {
-      console.warn(`main: public static files ignored, cannot be used when site '${mainSite.id}' already defines one at ${prefix}.`)
-    } else {
-      console.log(`${mainSite.id}: Serving static files on port ${mainSite.port} at '${prefix}' from ${serveFolder}`);
-      staticRoutes.add({ port: 0, prefix});
-      // If port is 0, default to the standard HTTP or HTTPS ports for web servers.
-      mainListener.register(fastifyStatic, {
-        root: serveFolder,
-        list: false,
-        prefix,
-        decorateReply: needsDecoration(0) // first one?
-      })
-      decorated.add(0);  // mark this one has having decorated during the listener registration (only do that the first time)
-    }
-  } else {
-    if (!mainSite) {
-      console.log(`Serving default site for port [${port}] at '/'.`);
-      staticRoutes.add({ port: 0, prefix: '/'});
-      mainListener.get('/', (request, reply) => {
-        let name = serverCfg.domain || serverCfg.id || 'main'
-        reply.send('You have reached the API server for '+name)
-      });
-    }
+  if (!isStaticRoute(0, '/')) { // (mainSite) {
+    console.log(`Serving default site for port [${port}] at '/'.`);
+    mainListener.get('/', (request, reply) => {
+      let name = serverCfg.domain || serverCfg.id || 'main'
+      reply.send('You have reached the API server for '+name)
+    });
+    addStaticRoute(0, '/');
   }
 
-  console.log(`main: top-routes are:`);
-  staticRoutes.forEach( r => console.log('  '+r.port+': '+r.prefix))
+  console.log(`Static routes:`);
+  staticRoutes.forEach( r => console.log(r))
 
   // Actually start listening on the port now.
   try {
