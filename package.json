@@ -1,6 +1,6 @@
 {
   "name": "sossbox",
-  "version": "1.0.1010",
+  "version": "1.0.1011",
   "description": "A Simple Online Storage Server.",
   "main": "server.js",
   "scripts": {
@@ -8,8 +8,7 @@
     "build": "pkg server.js -o dist/",
     "build:win": "pkg -t latest-win-x64 server.js -o sossbox.exe",
     "build:linux": "pkg -t latest-linux-x64 server.js -o sossbox",
-    "build:mac": "pkg -t latest-macos-x64 server.js -o sossbox-macos",
-    "test": "jest"
+    "build:mac": "pkg -t latest-macos-x64 server.js -o sossbox-macos"
   },
   "engines": {
     "node": ">= 12.x"
@@ -43,8 +42,6 @@
     "ws": "^7.3.1"
   },
   "devDependencies": {
-    "jest": "^26.4.2",
-    "pkg": "^4.4.9",
-    "supertest": "^4.0.2"
+    "pkg": "^4.4.9"
   }
 }
