@@ -19,13 +19,12 @@ let publicRoutes = new Set();
 let decorated = new Set();
 
 function addPublicRoute(port, prefix) {
-  console.log(`publicRoutes: adding (${port},${prefix})`);
-  decorated.add(port);
+  // console.log(`publicRoutes: adding (${port},${prefix})`);
   publicRoutes.add({ port, prefix });
 }
 function isPublicRoute(port, prefix) {
   let result = publicRoutes.has({ port, prefix });
-  console.log(`publicRoutes: has(${port},${prefix})`,result);
+  // console.log(`publicRoutes: has(${port},${prefix})`,result);
   return result;
 }
 function needsDecoration(port) {
@@ -166,6 +165,7 @@ async function serverInit() {
           redirect: true,  // redirect /prefix to /prefix/ to allow file peers to work
           decorateReply: needsDecoration(port) // first one?
         })
+        decorated.add(port);  // mark this one has having decorated during the listener registration (only do that the first time)
         mainSite = siteCfg;
       }
     }
