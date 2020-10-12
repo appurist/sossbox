@@ -65,6 +65,8 @@ sossbox
 sossbox.exe
 sossbox-macos
 data/
+ssl/*.crt
+ssl/*.key
 
 #but include these in the git repo
 sites/*
