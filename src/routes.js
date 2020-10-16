@@ -44,16 +44,12 @@ console.log('SOSSBox '+packageVersion);
 // console.log('Node.js '+process.version);
 
 // This initializes the SOSS routes, and optionally user registration if siteCfg.registration is set.
-function initRoutes(siteCfg) {
-  let listener = siteCfg.listener;
-  let mySite = config.getSite(siteCfg.id);
-  if (!mySite) {
-    console.error(`Could not find id '${siteCfg.id}' in sites table.`)
-  }
+function initRoutes(site) {
+  let listener = site.listener;
 
   // some nested functions so we have siteCfg and mySite
   function verifyToken(token) {
-    let result = jwt.verify(token, siteCfg.secret, function(err, decoded) {
+    let result = jwt.verify(token, site.secret, function(err, decoded) {
       if (err) {
         console.error(err);
         return null;
@@ -81,25 +77,24 @@ function initRoutes(siteCfg) {
     return user && user.administrator;
   }
     
-  let prefix = mySite.prefix || '';
-
   // Declare a route
-  console.log(`${siteCfg.id}: Route for ${prefix}/status`)
+  let prefix = (site.prefix === '/') ? '' : site.prefix;  // store '/' as an empty string for concatenation
+  console.log(`${site.id}: Route for ${prefix}/status`)
   listener.get(prefix+'/status', async (request, reply) => {
     let response = {
       version: packageVersion,
-      id: siteCfg.id,
-      name: siteCfg.name,
-      domain: siteCfg.domain,
-      registration: siteCfg.registration,
+      id: site.id,
+      name: site.name,
+      domain: site.domain,
+      registration: site.registration,
       motd: ''
     };
     try {
-      response.motd = await mySite.fileGet('.', 'motd.md');
+      response.motd = await site.fileGet(site.siteData, 'motd.md');
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     } catch (err) {
       if (err.code !== 'ENOENT') {
-        console.err("MOTD:", siteCfg.id, err);
+        console.err("MOTD:", site.id, err);
         reply.code(500).send('motd.md not found')
         return;
       }
@@ -132,7 +127,7 @@ function initRoutes(siteCfg) {
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
     }
-    mySite.folderGet('users').then((response) => {
+    site.folderGet('users').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
       } else {
@@ -151,7 +146,7 @@ function initRoutes(siteCfg) {
       reply.code(401).send('Not authorized.');
       return;
     }
-    let meta = await mySite.userByUID(user.uid, "meta");
+    let meta = await site.userByUID(user.uid, "meta");
     reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
   })
 
@@ -163,7 +158,7 @@ function initRoutes(siteCfg) {
       return;
     }
     // TODO: This needs to merge the payload with the current profile data.
-    let meta = mySite.userByUID(user.uid, "meta");
+    let meta = site.userByUID(user.uid, "meta");
     meta.user = Object.assign({}, meta.user, request.body);
     await userDocReplace(user, '', "meta", meta);
     reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
@@ -180,7 +175,7 @@ function initRoutes(siteCfg) {
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
     }
-    mySite.userByLogin(login).then((response) => {
+    site.userByLogin(login).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response.user));    
     }).catch((err) => { 
       handleError(err, request, reply);
@@ -189,8 +184,8 @@ function initRoutes(siteCfg) {
 
   // This is user add (a.k.a. signup or registration)
   listener.post(prefix+'/users', (request, reply) => {
-    if (!siteCfg.registration) {
-      if (!siteCfg.registration) {
+    if (!site.registration) {
+      if (!site.registration) {
         reply.code(405).send('New user registration is disabled.');
         return false;
       }
@@ -203,7 +198,7 @@ function initRoutes(siteCfg) {
 
     // Next, create user with key from tenant storage.
     // Returns the server key (.secret member is the storage token).
-    mySite.userCreate(credentials, user)
+    site.userCreate(credentials, user)
     .then(response => {
       let user = response.user;
       reply.type(JSON_TYPE).send(JSON.stringify(user));
@@ -213,8 +208,8 @@ function initRoutes(siteCfg) {
   })
 
   listener.delete(prefix+'/users/:uid', (request, reply) => {
-    if (!siteCfg.registration) {
-      if (!siteCfg.registration) {
+    if (!site.registration) {
+      if (!site.registration) {
         reply.code(405).send('User account deletion (and registration) is disabled.');
         return false;
       }
@@ -230,7 +225,7 @@ function initRoutes(siteCfg) {
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
     }
-    mySite.userDelete(uid).then((response) => {
+    site.userDelete(uid).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
       return;
     }).catch((err) => { 
@@ -239,21 +234,21 @@ function initRoutes(siteCfg) {
   });
 
   listener.post(prefix+'/login', (request, reply) => {
-    if (!siteCfg.secret) {
-      console.error(`${siteCfg.id}: secret is not set.`);
+    if (!site.secret) {
+      console.error(`${site.id}: secret is not set.`);
       return false;
     }
 
-    mySite.userByLogin(request.body.login)
+    site.userByLogin(request.body.login)
     .then(userRec => {
       let testhash = md5(request.body.password);
       if (testhash !== userRec.credentials.hash) {
         reply.code(401).send('Authentication failed, invalid password.');
         return;
       }
-      mySite.fileGet('.', 'motd.md').then(motd => {
+      site.fileGet('.', 'motd.md').then(motd => {
         let response = Object.assign({ }, userRec.user)
-        response.token = jwt.sign(userRec.user, siteCfg.secret, { issuer: siteCfg.id})
+        response.token = jwt.sign(userRec.user, site.secret, { issuer: site.id})
         // The token does not include more than basic user.
         // e.g. The token does not include itself, or the MOTD message.
         response.motd = motd;
@@ -282,7 +277,7 @@ function initRoutes(siteCfg) {
       return;
     }
 
-    mySite.userListDocs(user.uid, 'projects').then((response) => {
+    site.userListDocs(user.uid, 'projects').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));
       } else {
@@ -299,7 +294,7 @@ function initRoutes(siteCfg) {
     }
 
     let id = request.params.id;
-    mySite.userDocGet(user.uid, 'projects', id).then(response => {
+    site.userDocGet(user.uid, 'projects', id).then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }).catch((err) => { 
       handleError(err, request, reply);
@@ -318,7 +313,7 @@ function initRoutes(siteCfg) {
 
     // Next, create user with key from tenant storage.
     // Returns the server key (.secret member is the storage token).
-    mySite.userDocCreate(user.uid, 'projects', uid, proj)
+    site.userDocCreate(user.uid, 'projects', uid, proj)
     .then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
     }).catch(err => { 
@@ -334,7 +329,7 @@ function initRoutes(siteCfg) {
     }
 
     let uid = request.params.uid;
-    mySite.userDocDelete(user.uid, 'projects', uid).then((response) => {
+    site.userDocDelete(user.uid, 'projects', uid).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
       return;
     }).catch((err) => { 

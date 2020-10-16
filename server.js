@@ -3,16 +3,12 @@ const path = require('path')
 const fastify = require('fastify')
 const fastifyStatic = require('fastify-static');
 
+const {PUBLIC_FOLDER, KEY_FILE, CRT_FILE} = require('./src/constants')
 const io = require('./src/io')
 const config = require('./src/config')
 
 const routes = require('./src/routes')
 
-const KEY_FILE = 'server.key'
-const CRT_FILE = 'server.crt'
-const PUBLIC_FOLDER = 'public'
-
-let serverCfg = undefined;
 let mainListener = undefined;
 let mainSite = undefined;
 let staticRoutes = new Set();
@@ -59,7 +55,7 @@ async function getListenerOptions(id, sslPath) {
 }
 
 async function initListener(id, options) {
-  // 'listener' is a Fastify instance. 'siteCfg' is the configuration object.
+  // 'listener' is a Fastify instance. 'site' is the configuration object.
   const listener = fastify(options);
   listener.register(require('fastify-websocket'));
   // Deal with CORS by enabling it since this is an API for all.
@@ -104,92 +100,73 @@ function listenerStart(listener, id, host, port) {
 
 // Returns the fastify instance on success.
 async function serverInit() {
-  serverCfg = await config.init();
-  if (!serverCfg) {
-    console.error("Environment configuration error: ", serverCfg);
+  mainSite = await config.init();
+  if (!mainSite) {
+    console.error("Environment configuration error: ", mainSite);
     return null;
   }
 
   // Loop over the listeners and initialize routes.
   await config.forEachSiteAsync (async (site) => {
-    let siteCfg = site.getSiteCfg();
-    let siteData = site.getSiteData();
-    let basePath = site.getSitePath();
-
-    if (siteCfg.port !== 0) {
-      let sslPath = path.join(siteData, 'ssl');
-      let options = await getListenerOptions(siteCfg.id, sslPath);
-      // Save the fastify site listener for easy access.
-      siteCfg.listener = await initListener(siteCfg.id, options);
-    } else {
-      // for this site (port 0), use the main listener
-      if (!mainListener) {
-        let baseFolder = process.cwd();
-        let sslPath = path.join(baseFolder, 'ssl');  
-        let options = await getListenerOptions(siteCfg.id, sslPath);
-        mainListener = await initListener(siteCfg.id, options);
-      }
-      siteCfg.listener = mainListener;
+    let sslPath = path.join(site.siteBase, 'ssl');
+    site.options = await getListenerOptions(site.id, sslPath);
+    // Save the fastify site listener for easy access.
+    site.listener = await initListener(site.id, site.options);
+    if (site.port === 0) {
+      // for this site (port 0), save as the main listener
+      mainListener = site.listener;
     }
 
     // Initialize the SOSSBox server REST API endpoints.
-    if (siteCfg.storage) {
-      routes.initRoutes(siteCfg);
+    if (site.siteData) {
+      routes.initRoutes(site);
     }
 
-    let publicBase = (siteCfg.listener === mainListener) ? process.cwd() : basePath;
-    // now support optionally serving static files, e.g. a "public" folder, if specified.
-    if (!siteCfg.public) {
-      // check if a public folder exists anyway
-      if (await io.folderExists(publicBase, PUBLIC_FOLDER)) {
-        siteCfg.public = PUBLIC_FOLDER;
-      }
-    }
-    if (siteCfg.public) {
-      let port = siteCfg.port || 0;
-      let prefix = siteCfg.prefix || '/';
-      if (isStaticRoute(port, prefix)) {  // (siteCfg.port === 0 && mainSite) {
-        console.warn(`${siteCfg.id}: static files cannot be used with port  specified more than once. '${mainSite.id} already defines one.`)
+    if (site.sitePublic) {
+      if (isStaticRoute(site.port, site.prefix)) {
+        console.warn(`${site.id}: static files cannot be used with port  specified more than once. '${mainSite.id} already defines one.`)
       } else {
-        let serveFolder = path.join(publicBase, siteCfg.public);
-        console.log(`${siteCfg.id}: Serving static files on port ${siteCfg.port} at '${prefix}' from ${serveFolder}`);
-        addStaticRoute(port, prefix);
-        siteCfg.listener.register(fastifyStatic, {
-          root: serveFolder,
+        console.log(`${site.id}: Serving static files on port ${site.port} at '${site.prefix}' from ${site.sitePublic}`);
+        addStaticRoute(site.port, site.prefix);
+        site.listener.register(fastifyStatic, {
+          root: site.sitePublic,
           list: true,
-          prefix: prefix,
+          prefix: site.prefix,
           redirect: true,  // redirect /prefix to /prefix/ to allow file peers to work
-          decorateReply: needsDecoration(port) // first one?
+          decorateReply: needsDecoration(site.port) // first one?
         })
-        decorated.add(port);  // mark this one has having decorated during the listener registration (only do that the first time)
-        mainSite = siteCfg;
+        decorated.add(site.port);  // mark this one has having decorated during the listener registration (only do that the first time)
       }
     }
 
     // If port is 0, just passively use the mainListener.
-    if (siteCfg.port !== 0) {
+    if (site.port !== 0) {
       // Actually start listening on the port now.
-      listenerStart(siteCfg.listener, siteCfg.id, siteCfg.host, siteCfg.port);
+      listenerStart(site.listener, site.id, site.host, site.port);
     }
-    return siteCfg.listener;
+    return site.listener;
   });
 
+  /*
   // Top-level site?
   let baseFolder = process.cwd();
-  let serveFolder = path.join(baseFolder, PUBLIC_FOLDER);
   let sslPath = path.join(baseFolder, 'ssl');  
   let options = await getListenerOptions('main', sslPath);
-  let port = serverCfg.port || options.https ? 443 : 80;
-  let host = serverCfg.host || '0.0.0.0'; // all NICs
+  let port = mainSite.port || options.https ? 443 : 80;
+  let host = mainSite.host || '0.0.0.0'; // all NICs
 
   if (!mainListener) {
     mainListener = await initListener('main', options);
   }
-  
+  */
+
+  let port = mainSite.port || mainSite.options.https ? 443 : 80;
+  let host = mainSite.host || '0.0.0.0'; // all NICs
+  let id = mainSite.id || 'main';
+  let name = mainSite.domain || id;
   if (!isStaticRoute(0, '/')) { // (mainSite) {
     console.log(`Serving default site for port [${port}] at '/'.`);
     mainListener.get('/', (request, reply) => {
-      let name = serverCfg.domain || serverCfg.id || 'main'
       reply.send('You have reached the API server for '+name)
     });
     addStaticRoute(0, '/');
@@ -200,7 +177,7 @@ async function serverInit() {
 
   // Actually start listening on the port now.
   try {
-    listenerStart(mainListener, 'main', host, port);
+    listenerStart(mainListener, id, host, port);
   } catch (err) {
     console.error(err.message)
   }

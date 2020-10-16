@@ -1,81 +1,62 @@
 const path = require('path');
 const io = require('./io');
 
-const USERMETA = 'meta.json';
+const {USERMETA, PUBLIC_FOLDER, DATA_FOLDER} = require('./constants')
 
 let debug_level = 0;
 
 class Site {
-  constructor(sites, folder) {
-    this.siteFolder = folder;
-    this.sitePath = Site.resolveSiteBase(sites, folder);
-    this.siteData = this.sitePath; // default to the same folder
-    this.siteCfg = { };
-  }
-
-  getSiteId()  { return this.id; }
-  getSiteCfg() { return this.siteCfg; }
-  getSitePath() { return this.sitePath; }
-  getSiteFolder() { return this.siteFolder; }
-  getSiteData() { return this.siteData; }
-
-  static resolveSiteBase(absPath, relPath) {
-    let sitesPath = relPath || './sites';
-    return path.isAbsolute(sitesPath) ? path.resolve(sitesPath) : path.resolve(absPath, sitesPath);
+  constructor(siteBase) {
+    // site defaults here
+    this.siteBase = siteBase;
+    this.host = '0.0.0.0';
+    this.port = 0;
+    this.prefix = '/';
+    this.data = DATA_FOLDER;
+    this.public = PUBLIC_FOLDER;
   }
 
   // pass in the per-site config including the relative/absolute data folder.
-  async initSiteData(siteCfg) {
-    this.siteCfg = Object.assign({}, siteCfg);
-    this.data = this.siteCfg.data; // possibly complete different location than sitePath, or the same.
-
-    // shorter convenience aliases
-    this.id = this.siteCfg.id;
-    this.name = this.siteCfg.name;
-    this.domain = this.siteCfg.domain;
-    this.port = this.siteCfg.port;
-    this.storage = this.siteCfg.storage;            // enable SOSS REST enpoints?
-    this.registration = this.siteCfg.registration;  // if storage, enable user registration too?
-    this.public = this.siteCfg.public;
-    this.host = this.siteCfg.host;
-    this.prefix = this.siteCfg.prefix;
-    // This feature uses 'port', 'domain' and 'prefix' fields. If a prefix is specified, it is prepended to the route URL before the route
-    // (e.g. api.blah.com subdomain in 'domain', plus a '/sitename' prefix and '/status' becomes `https://api.blah.com/sitename/status') 
-    // and the main listener is used (this port is ignored).
-
-    // now determine where the per-site data actually is
-    let result = this.sitePath; // default to the same folder for data and site folder
-    if (this.data) {
-      if (path.isAbsolute(this.data)) {
-        result = path.resolve(this.data);
-      } else {
-        result = path.resolve(this.sitePath, this.data);
-      }
-    } else {
-      result = path.resolve(this.sitePath);
+  async initSite(cfgName) {
+    let configOverrides = await io.jsonGet(this.siteBase, cfgName) || {};
+    // add overrides to defaults from config
+    for (let k in configOverrides) {
+      this[k] = configOverrides[k];
     }
-    this.siteData = result;
+    // now determine where the per-site data actually is
+    this.siteData = path.resolve(this.siteBase, this.data);
+    this.sitePublic = path.resolve(this.siteBase, this.public);
 
-    // Now make sure the initial folder structure is in place.
-    // Create initial site subfolders if necessary
-    await io.folderCreate(this.siteData);
-    await io.folderCreate(path.join(this.siteData, 'users'));
-    await io.folderCreate(path.join(this.siteData, 'logins'));
+    // check if static/public folder exists for this site
+    if (await io.folderExists(this.sitePublic)) {
+      console.log(`Found public folder for '${this.name}' ('${this.id}') port ${this.port} at ${this.prefix}: ${this.sitePublic}`);
+    } else {
+      this.sitePublic = null;  // clear it so we know not to try to use data that doesn't exist
+    }
 
-    // Return the siteData location from per-site config.
-    return result;
+    // check if storage location exists
+    if (await io.folderExists(this.siteData)) {
+      // Now make sure the initial folder structure is in place.
+      // Create initial site subfolders if necessary.
+      await io.folderCreate(this.siteData);
+      await io.folderCreate(path.join(this.siteData, 'users'));
+      await io.folderCreate(path.join(this.siteData, 'logins'));
+      console.log(`Storage ready for '${this.name}' ('${this.id}'): ${this.siteData}`);
+    } else {
+      this.siteData = null; // clear it so we know not to try to use data that doesn't exist
+    }
   }
 
   async fileGet(folder, fn) {
-    let pn = path.join(this.siteData, folder);
+    let pn = path.resolve(this.siteData, folder);
     return await io.fileGet(pn, fn);
   }
   async docGet(folder, fn) {
-    let pn = path.join(this.siteData, folder);
+    let pn = path.resolve(this.siteData, folder);
     return await io.jsonGet(pn, fn);
   }
   async folderGet(folder) {
-    let pn = path.join(this.siteData, folder);
+    let pn = path.resolve(this.siteData, folder);
     return await io.folderGet(pn);
   }
 
