@@ -64,21 +64,11 @@ dist/
 sossbox
 sossbox.exe
 sossbox-macos
-data/
 ssl/*.crt
 ssl/*.key
-
-#but include these in the git repo
-sites/*
-!sites/example
-!sites/example/**
-!sites/example2
-!sites/example2/**
-!sites/subsite
-!sites/subsite/**
-
-
-sossbox
-
+data/
+sites/
+#your own sites/info for testing
+sites.private/
 token.txt
 *\.cmd
