@@ -54,6 +54,16 @@ async function getListenerOptions(id, sslPath) {
   }
 }
 
+function onError(err) {
+  console.error("Server error:", err.message);
+  if (err.code === 'EADDRINUSE') {
+    console.log(" To continue: Restart this server after changing the indicated port number, or stopping the conflicting service.");
+  }
+  process.exit(1); //mandatory (as per the Node.js docs)
+}
+
+process.on('uncaughtException', onError);
+  
 async function initListener(id, options) {
   // 'listener' is a Fastify instance. 'site' is the configuration object.
   const listener = fastify(options);
@@ -61,7 +71,7 @@ async function initListener(id, options) {
   // Deal with CORS by enabling it since this is an API for all.
   listener.register(require('fastify-cors'), { });
   // fastify.options('*', (request, reply) => { reply.send() })
-
+  
   listener.setErrorHandler(function (error, request, reply) {
     // Send error response
     console.warn(`${id}: error handler for`,error);
@@ -172,8 +182,8 @@ async function serverInit() {
     addStaticRoute(0, '/');
   }
 
-  console.log(`Static routes:`);
-  staticRoutes.forEach( r => console.log(r))
+  // console.log(`Static routes:`);
+  // staticRoutes.forEach( r => console.log(r))
 
   // Actually start listening on the port now.
   try {
