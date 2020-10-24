@@ -5,10 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "pkg server.js -t node14 -o sossbox",
-    "build:win": "pkg -t node14-win-x64 server.js -o sossbox.exe",
-    "build:linux": "pkg -t node14-linux-x64 server.js -o sossbox",
-    "build:mac": "pkg -t node14-macos-x64 server.js -o sossbox-macos"
+    "build": "pkg server.js -t latest -o sossbox",
+    "build:win": "pkg -t latest-win-x64 server.js -o sossbox.exe",
+    "build:linux": "pkg -t latest-linux-x64 server.js -o sossbox",
+    "build:mac": "pkg -t latest-macos-x64 server.js -o sossbox-macos"
   },
   "engines": {
     "node": ">= 12.x"
