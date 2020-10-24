@@ -108,25 +108,6 @@ function initRoutes(site) {
     }
   })
 
-  // support the websocket
-  listener.get(prefix+'/updates', { websocket: true }, (connection, req) => {
-    console.log("socket connected.");
-    connection.socket.on('message', (message) => {
-      if (message.startsWith('user,')) {
-        console.log("socket message: user,***");
-      } else {
-        console.log("socket message:", message);
-      }
-      connection.socket.send('{ "message": "none"}');
-    })
-    connection.socket.on('open', (connection, ev) => {
-      console.log("socket connected:", connection, ev);
-    })
-    connection.socket.on('close', (code, reason) => {
-      console.log("socket disconnected:", code, reason);
-    })
-  })  
-
   listener.get(prefix+'/users', (request, reply) => {
     if (!isAdmin(request)) {
       reply.code(403).send('Forbidden: user is not authorized.');
