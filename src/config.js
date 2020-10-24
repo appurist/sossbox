@@ -24,7 +24,9 @@ async function init() {
   if (mainSite.sites && await io.folderExists(sitesFolder)) {
     let sites = await io.folderGet(sitesFolder);
     if (sites) {
-      console.log(`Found ${sites.length} additional sites at ${sitesFolder}`);
+      if (sites.length > 1) {
+        console.log(`Found ${sites.length-1} additional sites at ${sitesFolder}`);
+      }
       mainSite.sitesFolder = sitesFolder;
       for (let folder of sites) {
         let siteBase = path.join(sitesFolder, folder);

@@ -15,7 +15,6 @@ let staticRoutes = new Set();
 let decorated = new Set();
 
 function addStaticRoute(port, prefix) {
-  //console.log(`staticRoutes: adding (${port},${prefix})`);
   staticRoutes.add(`${port},${prefix}`);
 }
 function isStaticRoute(port, prefix) {
@@ -90,7 +89,6 @@ async function initListener(id, options) {
 
 function listenerStart(listener, id, host, port) {
   // Start the server listening.
-  console.log(`${id}: Starting listener on port ${port}`)
   listener.listen(port, host, (err) => {
     if (err) {
       console.error(err.message);
@@ -183,7 +181,7 @@ async function serverInit() {
   }
 
   // console.log(`Static routes:`);
-  // staticRoutes.forEach( r => console.log(r))
+  // staticRoutes.forEach( r => console.log('  '+r))
 
   // Actually start listening on the port now.
   try {

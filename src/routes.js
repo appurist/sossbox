@@ -2,8 +2,6 @@ const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 
-const config = require('./config');
-
 const JSON_TYPE = 'application/json; charset=utf-8';
 
 // pass null for reply if it should not send the reply automatically
@@ -55,7 +53,7 @@ function initRoutes(site) {
         return null;
       }
   
-      console.log("Storing user for token:", decoded);
+      // console.log("Storing user for token:", decoded);
       let user = decoded;
       user.token = token;
       user.authenticated = true;
@@ -79,7 +77,7 @@ function initRoutes(site) {
     
   // Declare a route
   let prefix = (site.prefix === '/') ? '' : site.prefix;  // store '/' as an empty string for concatenation
-  console.log(`${site.id}: Route for ${prefix}/status`)
+  console.log(`${site.id}: Routes for ${prefix}/status etc.`)
   listener.get(prefix+'/ping', async (request, reply) => {
     try {
       reply.type(JSON_TYPE).send(JSON.stringify({sossbox: site.id}));    
@@ -144,7 +142,6 @@ function initRoutes(site) {
       handleError(err, request, reply);
     });
   })
-
 
   // Same as /users/:myID but with an implicit ID
   listener.get(prefix+'/profile', async (request, reply) => {
@@ -343,17 +340,6 @@ function initRoutes(site) {
       handleError(err, request, reply);
     });
   });
-
-
-  // Add a hook for logging.
-  /*
-  listener.addHook('onResponse', (request, reply, next) => {
-    let req = request.req;
-    let res = reply.res;
-    // console.log(`Request from ${req.ip} for ${req.method} ${req.url}: ${res.statusCode} ${res.statusMessage}`);
-    next();
-  })
-  */
 }
 
 module.exports = { initRoutes };
