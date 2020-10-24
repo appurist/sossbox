@@ -12,7 +12,7 @@ const routes = require('./src/routes')
 let mainListener = undefined;
 let mainSite = undefined;
 let staticRoutes = new Set();
-let decorated = new Set();
+let portListeners = { }
 
 function addStaticRoute(port, prefix) {
   staticRoutes.add(`${port},${prefix}`);
@@ -21,8 +21,8 @@ function isStaticRoute(port, prefix) {
   let result = staticRoutes.has(`${port},${prefix}`);
   return result;
 }
-function needsDecoration(port) {
-  return !decorated.has(port);
+function needsListener(port) {
+  return !portListeners.hasOwnProperty(port);
 }
 
 // Returns the SSL or non-SSL related options
@@ -63,30 +63,6 @@ function onError(err) {
 
 process.on('uncaughtException', onError);
   
-async function initListener(id, options) {
-  // 'listener' is a Fastify instance. 'site' is the configuration object.
-  const listener = fastify(options);
-  listener.register(require('fastify-websocket'));
-  // Deal with CORS by enabling it since this is an API for all.
-  listener.register(require('fastify-cors'), { });
-  // fastify.options('*', (request, reply) => { reply.send() })
-  
-  listener.setErrorHandler(function (error, request, reply) {
-    // Send error response
-    console.warn(`${id}: error handler for`,error);
-    let code = 500;
-    let message = 'Unknown server error';
-    if (error.statusCode)
-      code = error.statusCode;
-    else
-    if (error.message)
-      message = error.message;
-    reply.code(code).send(message);
-  })
-
-  return listener;
-}
-
 function listenerStart(listener, id, host, port) {
   // Start the server listening.
   listener.listen(port, host, (err) => {
@@ -121,10 +97,14 @@ async function serverInit() {
     let sslPath = path.join(site.siteBase, 'ssl');
     site.options = await getListenerOptions(site.id, sslPath);
     // Save the fastify site listener for easy access.
-    site.listener = await initListener(site.id, site.options);
-    if (site.port === 0) {
-      // for this site (port 0), save as the main listener
-      mainListener = site.listener;
+    if (needsListener(site.port)) {
+      site.listener = fastify(site.options);
+      if (site.port === 0) {
+        // for this site (port 0), save as the main listener
+        mainListener = site.listener;
+      }
+    } else {
+      site.listener =  portListeners[site.port];
     }
 
     // Initialize the SOSSBox server REST API endpoints.
@@ -136,16 +116,25 @@ async function serverInit() {
       if (isStaticRoute(site.port, site.prefix)) {
         console.warn(`${site.id}: static files cannot be used with port  specified more than once. '${mainSite.id} already defines one.`)
       } else {
+        let isNewListener = needsListener(site.port); // first one?
         console.log(`${site.id}: Serving static files on port ${site.port} at '${site.prefix}' from ${site.sitePublic}`);
         addStaticRoute(site.port, site.prefix);
-        site.listener.register(fastifyStatic, {
-          root: site.sitePublic,
-          list: true,
-          prefix: site.prefix,
-          redirect: true,  // redirect /prefix to /prefix/ to allow file peers to work
-          decorateReply: needsDecoration(site.port) // first one?
-        })
-        decorated.add(site.port);  // mark this one has having decorated during the listener registration (only do that the first time)
+        let staticOptions = {
+          // list: true,
+          root: site.sitePublic
+        }
+        if (site.prefix && site.prefix !== '/') {
+          // redirect /prefix to /prefix/ to allow file peers to work
+          staticOptions.redirect = true;
+          staticOptions.prefix = site.prefix;
+        }
+        if (!isNewListener) { // not the first one?
+          staticOptions.decorateReply = false;
+        }
+        site.listener.register(fastifyStatic, staticOptions);
+        if (isNewListener) {
+          portListeners[site.port] = site.listener;
+        }
       }
     }
 
