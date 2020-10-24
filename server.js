@@ -163,12 +163,12 @@ async function serverInit() {
   let host = mainSite.host || '0.0.0.0'; // all NICs
   let id = mainSite.id || 'main';
   let name = mainSite.domain || id;
-  if (!isStaticRoute(0, '/')) { // (mainSite) {
+  if (!isStaticRoute(port, '/')) { // (mainSite) {
     console.log(`Serving default site for port [${port}] at '/'.`);
     mainSite.listener.get('/', (request, reply) => {
       reply.send('You have reached the API server for '+name)
     });
-    addStaticRoute(0, '/');
+    addStaticRoute(port, '/');
   }
 
   // console.log(`Static routes:`);
