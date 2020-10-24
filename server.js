@@ -99,7 +99,7 @@ async function serverInit() {
     // Save the fastify site listener for easy access.
     if (needsListener(site.port)) {
       site.listener = fastify(site.options);
-      if (site.port === 0) {
+      if (site.siteBase === rootFolder) {
         // for this site (port 0), save as the main listener
         mainListener = site.listener;
       }
@@ -139,7 +139,7 @@ async function serverInit() {
     }
 
     // If port is 0, just passively use the mainListener.
-    if (site.port !== 0) {
+    if (site !== mainSite) {
       // Actually start listening on the port now.
       listenerStart(site.listener, site.id, site.host, site.port);
     }
@@ -159,13 +159,13 @@ async function serverInit() {
   }
   */
 
-  let port = mainSite.port || mainSite.options.https ? 443 : 80;
+  let port = mainSite.port || (mainSite.options.https ? 443 : 80);
   let host = mainSite.host || '0.0.0.0'; // all NICs
   let id = mainSite.id || 'main';
   let name = mainSite.domain || id;
   if (!isStaticRoute(0, '/')) { // (mainSite) {
     console.log(`Serving default site for port [${port}] at '/'.`);
-    mainListener.get('/', (request, reply) => {
+    mainSite.listener.get('/', (request, reply) => {
       reply.send('You have reached the API server for '+name)
     });
     addStaticRoute(0, '/');
