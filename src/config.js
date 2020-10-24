@@ -9,10 +9,7 @@ const {SERVER_CFG, SITE_CFG} = require('./constants')
 let cfg = { };
 let siteMap = new Map;  // note this is a Map, use set() and get()
 
-async function init() {
-  // init the main site
-  let rootFolder = process.cwd();  // was __dirname but when packaged that is "/snapshot/"
-
+async function init(rootFolder) {
   // start with the main site
   let mainSite = new Site(rootFolder);
   await mainSite.initSite(SERVER_CFG);

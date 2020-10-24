@@ -106,9 +106,11 @@ function listenerStart(listener, id, host, port) {
   }
 }
 
+let rootFolder = process.cwd();
+
 // Returns the fastify instance on success.
 async function serverInit() {
-  mainSite = await config.init();
+  mainSite = await config.init(rootFolder);
   if (!mainSite) {
     console.error("Environment configuration error: ", mainSite);
     return null;
