@@ -3,7 +3,7 @@ const path = require('path')
 const fastify = require('fastify')
 const fastifyStatic = require('fastify-static');
 
-const {PUBLIC_FOLDER, KEY_FILE, CRT_FILE} = require('./src/constants')
+const {KEY_FILE, CRT_FILE} = require('./src/constants')
 const io = require('./src/io')
 const config = require('./src/config')
 
@@ -13,6 +13,41 @@ let mainListener = undefined;
 let mainSite = undefined;
 let staticRoutes = new Set();
 let portListeners = { }
+
+// Initialize and maintain the pid file.
+const npid = require('npid');
+const { unlinkSync } = require('fs');
+const PIDFILE = path.join(process.cwd(),'sossbox.pid')
+let pid = undefined;  // the npid instance
+
+function handleShutdown(rc) {
+  for (let port in portListeners) {
+    if (portListeners.hasOwnProperty(port)) {
+      console.log(`Closing listener for port ${port}.`);
+      portListeners[port].close();
+    }
+  }
+  process.exit(rc);
+}
+
+// unconditionally delete any existing pid file on startup, to ensure it's always the latest run.
+try { unlinkSync(PIDFILE); } catch (err) {}
+try {
+  pid = npid.create(PIDFILE);
+  pid.removeOnExit();
+} catch (err) {
+  console.log(err);
+  process.exit(1);
+}
+// pid file handling requires process.exit to be called on SIGTERM and SIGINT, which we want anyway.
+process.on('SIGTERM', () => {
+  console.info('Terminate (SIGTERM) signal received.');
+  handleShutdown(0);
+});
+process.on('SIGINT', () => {
+  console.info('Interrupt (SIGINT) signal received.');
+  handleShutdown(0);
+});
 
 function addStaticRoute(port, prefix) {
   staticRoutes.add(`${port},${prefix}`);
@@ -58,7 +93,7 @@ function onError(err) {
   if (err.code === 'EADDRINUSE') {
     console.log(" To continue: Restart this server after changing the indicated port number, or stopping the conflicting service.");
   }
-  process.exit(1); //mandatory (as per the Node.js docs)
+  handleShutdown(1);  //mandatory return code (as per the Node.js docs)
 }
 
 process.on('uncaughtException', onError);
@@ -68,7 +103,7 @@ function listenerStart(listener, id, host, port) {
   listener.listen(port, host, (err) => {
     if (err) {
       console.error(err.message);
-      process.exit(1)
+      handleShutdown(1);
     }
 
     let port = listener.server.address().port;
