@@ -62,7 +62,7 @@ function needsListener(port) {
 
 // Returns the SSL or non-SSL related options
 async function getListenerOptions(id, sslPath) {
-  let options = { logger: false };
+  let options = { };
   let sslOptions = undefined;
 
   let keyExists = await io.fileExists(sslPath, KEY_FILE)
@@ -131,6 +131,19 @@ async function serverInit() {
   await config.forEachSiteAsync (async (site) => {
     let sslPath = path.join(site.siteBase, 'ssl');
     site.options = await getListenerOptions(site.id, sslPath);
+    if (site.loglevel || site.logfile) {
+      let loglevel = site.loglevel || 'warn';
+      let logfile = site.logfile || `sossbox-${site.id}.log`
+      site.options.logger = 
+      {
+        level: loglevel,
+        file: logfile // Will use pino.destination()
+      }
+      console.log(`Logging level ${loglevel} for site '${site.id}' in ${logfile}`);
+    } else {
+      site.options.logger = false;
+    }
+
     // Save the fastify site listener for easy access.
     if (needsListener(site.port)) {
       site.listener = fastify(site.options);
