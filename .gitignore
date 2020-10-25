@@ -60,10 +60,8 @@ typings/
 # next.js build output
 .next
 
-dist/
-sossbox
-sossbox.exe
-sossbox-macos
+# production/deployment-specific files
+sossbox.cfg
 ssl/*.crt
 ssl/*.key
 data/
@@ -72,3 +70,9 @@ sites/
 sites.private/
 token.txt
 *\.cmd
+
+# build output files
+dist/
+sossbox
+sossbox.exe
+sossbox-macos
