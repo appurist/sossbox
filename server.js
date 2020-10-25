@@ -143,7 +143,7 @@ async function serverInit() {
     }
 
     // Initialize the SOSSBox server REST API endpoints.
-    if (site.siteData) {
+    if (site.storage) {
       routes.initRoutes(site);
     }
 
@@ -180,19 +180,6 @@ async function serverInit() {
     }
     return site.listener;
   });
-
-  /*
-  // Top-level site?
-  let baseFolder = process.cwd();
-  let sslPath = path.join(baseFolder, 'ssl');  
-  let options = await getListenerOptions('main', sslPath);
-  let port = mainSite.port || options.https ? 443 : 80;
-  let host = mainSite.host || '0.0.0.0'; // all NICs
-
-  if (!mainListener) {
-    mainListener = await initListener('main', options);
-  }
-  */
 
   let port = mainSite.port || (mainSite.options.https ? 443 : 80);
   let host = mainSite.host || '0.0.0.0'; // all NICs

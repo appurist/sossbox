@@ -77,7 +77,7 @@ function initRoutes(site) {
     
   // Declare a route
   let prefix = (site.prefix === '/') ? '' : site.prefix;  // store '/' as an empty string for concatenation
-  console.log(`${site.id}: Routes for ${prefix}/status etc.`)
+  console.log(`${site.id}: Enabling storage API for ${prefix} ...`)
   listener.get(prefix+'/ping', async (request, reply) => {
     try {
       reply.type(JSON_TYPE).send(JSON.stringify({sossbox: site.id}));    

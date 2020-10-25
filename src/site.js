@@ -12,6 +12,7 @@ class Site {
     this.host = '0.0.0.0';
     this.port = 0;
     this.prefix = '/';
+    this.storage = false;
     this.data = DATA_FOLDER;
     this.public = PUBLIC_FOLDER;
   }
@@ -23,8 +24,9 @@ class Site {
     for (let k in configOverrides) {
       this[k] = configOverrides[k];
     }
+
     // now determine where the per-site data actually is
-    this.siteData = path.resolve(this.siteBase, this.data);
+    this.siteData = this.storage ? path.resolve(this.siteBase, this.data) : null;
     this.sitePublic = path.resolve(this.siteBase, this.public);
 
     // check if static/public folder exists for this site
@@ -35,15 +37,20 @@ class Site {
     }
 
     // check if storage location exists
-    if (await io.folderExists(this.siteData)) {
-      // Now make sure the initial folder structure is in place.
-      // Create initial site subfolders if necessary.
-      await io.folderCreate(this.siteData);
-      await io.folderCreate(path.join(this.siteData, 'users'));
-      await io.folderCreate(path.join(this.siteData, 'logins'));
-      console.log(`Storage ready for '${this.name}' ('${this.id}'): ${this.siteData}`);
-    } else {
-      this.siteData = null; // clear it so we know not to try to use data that doesn't exist
+    if (this.siteData) {
+      if (await io.folderExists(this.siteData)) {
+        console.log(`Creating storage for '${this.name}' ('${this.id}') at ${this.siteData}`);
+        await io.folderCreate(this.siteData);
+      }
+      if (await io.folderExists(this.siteData)) {
+        // Now make sure the initial folder structure is in place.
+        // Create initial site subfolders if necessary.
+        await io.folderCreate(path.join(this.siteData, 'users'));
+        await io.folderCreate(path.join(this.siteData, 'logins'));
+        console.log(`Storage ready for '${this.name}' ('${this.id}'): ${this.siteData}`);
+      } else {
+        this.siteData = null; // clear it so we know not to try to use data that doesn't exist
+      }
     }
   }
 
