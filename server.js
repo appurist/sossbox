@@ -1,6 +1,7 @@
 // Require the framework and instantiate it
 const path = require('path')
 const fastify = require('fastify')
+const fastifyCORS = require('fastify-cors')
 const fastifyStatic = require('fastify-static');
 
 const {KEY_FILE, CRT_FILE} = require('./src/constants')
@@ -13,6 +14,8 @@ let mainListener = undefined;
 let mainSite = undefined;
 let staticRoutes = new Set();
 let portListeners = { }
+
+let corsOptions = { origin: false };
 
 // Initialize and maintain the pid file.
 const npid = require('npid');
@@ -127,6 +130,10 @@ async function serverInit() {
     return null;
   }
 
+  if (mainSite.hasOwnProperty("cors")) {
+    corsOptions = Object.assign({}, corsOptions, mainSite.cors);
+  }
+
   // Loop over the listeners and initialize routes.
   await config.forEachSiteAsync (async (site) => {
     let sslPath = path.join(site.siteBase, 'ssl');
@@ -147,6 +154,8 @@ async function serverInit() {
     // Save the fastify site listener for easy access.
     if (needsListener(site.port)) {
       site.listener = fastify(site.options);
+      site.listener.register(fastifyCORS, corsOptions);
+
       if (site.siteBase === rootFolder) {
         // for this site (port 0), save as the main listener
         mainListener = site.listener;
