@@ -1,0 +1,22 @@
+[Unit]
+Description=Example Server
+After=network.target
+
+[Service]
+User=example
+WorkingDirectory=/home/api/example
+
+Type=simple
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+Environment=PATH=/home/api/.local/bin:/home/api/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+PIDFile=/home/api/authordesktop/sossbox.pid
+Restart=on-failure
+
+ExecStart=/usr/bin/sh /home/api/bin/sossctl start
+ExecStop=/usr/bin/sh /home/api/bin/sossctl stop
+ExecReload=/usr/bin/sh /home/api/bin/sossctl restart
+
+[Install]
+WantedBy=multi-user.target

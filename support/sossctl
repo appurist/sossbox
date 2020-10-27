@@ -1,0 +1,31 @@
+#!/bin/sh
+if [ -z "$1" ]; then
+  echo "Supports: start, stop, restart, status, log"
+  exit 1
+fi
+
+SOSSBOX=$HOME/bin/sossbox
+
+PWD=`pwd`
+site=`basename $PWD`
+
+echo "sossctl $*"
+if [ "$1" = "start" ]; then
+  echo "Starting sossbox instance for '$site' ..."
+  $SOSSBOX
+elif [ "$1" = "stop" ]; then
+  if [ -s sossbox.pid ]; then
+    kill -TERM --pid `cat sossbox.pid`
+    echo "Sent terminate to sossbox instance for '$site' ..."
+  else
+    echo "sossbox is not running in `pwd`"
+  fi
+elif [ "$1" = "restart" ]; then
+  echo "Restarting sossbox instance for '$site' ..."
+  kill -TERM --pid `cat sossbox.pid` && $SOSSBOX
+elif [ "$1" = "status" ]; then
+  # ps --pid `cat sossbox.pid`
+  systemctl status $site
+elif [ "$1" = "log" ]; then
+  journalctl -u $site -n 20
+fi
