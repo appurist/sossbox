@@ -181,6 +181,7 @@ async function symLink(src, dest) {
 
   let existingPath = path.resolve(src)
   let newPath = path.resolve(dest);
+  console.log(`*** symlink: "${existingPath}" as "${newPath}`)
   return await fsPromises.symlink(existingPath, newPath, 'junction');
 }
 // Needed for user delete and user login ID changes. Not to be confused with a user delete.
