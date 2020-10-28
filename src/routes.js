@@ -231,14 +231,14 @@ function initRoutes(site) {
         reply.code(401).send('Authentication failed, invalid password.');
         return;
       }
+      let response = Object.assign({ }, userRec.user)
+      response.token = jwt.sign(userRec.user, site.secret, { issuer: site.id})
+      // The token does not include more than basic user.
+      // e.g. The token does not include itself, or the MOTD message.
       site.fileGet('.', 'motd.md').then(motd => {
-        let response = Object.assign({ }, userRec.user)
-        response.token = jwt.sign(userRec.user, site.secret, { issuer: site.id})
-        // The token does not include more than basic user.
-        // e.g. The token does not include itself, or the MOTD message.
         response.motd = motd;
-        reply.type(JSON_TYPE).send(JSON.stringify(response));    
-      })
+      }).catch(()=> {});
+      reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }).catch((err) => {
       reply.code(401).send('Authentication failed.');
     });
