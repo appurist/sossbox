@@ -2,6 +2,8 @@ const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 
+const fastifyWebsocket = require('fastify-websocket');
+
 const JSON_TYPE = 'application/json; charset=utf-8';
 
 // pass null for reply if it should not send the reply automatically
@@ -45,6 +47,8 @@ console.log('SOSSBox '+packageVersion);
 function initRoutes(site) {
   let listener = site.listener;
 
+  listener.register(fastifyWebsocket);
+
   // some nested functions so we have siteCfg and mySite
   function verifyToken(token) {
     let result = jwt.verify(token, site.secret, function(err, decoded) {
@@ -78,6 +82,7 @@ function initRoutes(site) {
   // Declare a route
   let prefix = (site.prefix === '/') ? '' : site.prefix;  // store '/' as an empty string for concatenation
   console.log(`${site.id}: Enabling storage API for ${prefix} ...`)
+
   listener.get(prefix+'/ping', async (request, reply) => {
     try {
       reply.type(JSON_TYPE).send(JSON.stringify({sossbox: site.id}));    
@@ -107,6 +112,25 @@ function initRoutes(site) {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }
   })
+
+  // support the websocket
+  listener.get(prefix+'/updates', { websocket: true }, (connection, req) => {
+    console.log("socket connected.");
+    connection.socket.on('message', (message) => {
+      if (message.startsWith('user,')) {
+        console.log("socket message: user,***");
+      } else {
+        console.log("socket message:", message);
+      }
+      connection.socket.send('{ "message": "none"}');
+    })
+    connection.socket.on('open', (connection, ev) => {
+      console.log("socket connected:", connection, ev);
+    })
+    connection.socket.on('close', (code, reason) => {
+      console.log("socket disconnected:", code, reason);
+    })
+  })  
 
   listener.get(prefix+'/users', (request, reply) => {
     if (!isAdmin(request)) {
