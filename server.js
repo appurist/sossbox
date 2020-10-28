@@ -15,7 +15,7 @@ let mainSite = undefined;
 let staticRoutes = new Set();
 let portListeners = { }
 
-let corsOptions = { origin: false };
+let corsOptions = { origin: true };
 
 // Initialize and maintain the pid file.
 const npid = require('npid');
@@ -131,8 +131,9 @@ async function serverInit() {
   }
 
   if (mainSite.hasOwnProperty("cors")) {
-    corsOptions = Object.assign({}, corsOptions, mainSite.cors);
+    corsOptions = mainsite.cors;  // usually  { origin: true }
   }
+  console.log("CORS support:", corsOptions)
 
   // Loop over the listeners and initialize routes.
   await config.forEachSiteAsync (async (site) => {
