@@ -67,6 +67,20 @@ class Site {
     return await io.folderGet(pn);
   }
 
+  // this method checks if a folder for a give login ID already exists
+  async loginExists(name) {
+    if (debug_level) console.log("loginExists:", name);
+    if (!name) {
+      console.error('Error (loginExists): Invalid request,', name)
+      return false;
+    }
+
+    let newPath = path.join(this.siteData, 'logins', name);
+    let folder = await io.folderExists(newPath);
+    let file = await io.fileExists(this.siteData, 'logins');
+    return folder || file;
+  }
+  
   // this method uses a file system link to associate a login ID with a user UID (folder)
   async userLink(name, who) {
     if (debug_level) console.log("userLink:", name, who);

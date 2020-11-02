@@ -173,6 +173,20 @@ function initRoutes(site) {
     reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
   })
 
+  // This is for a pre-check on the user registration form, to verify that the proposed login ID is available.
+  listener.head(prefix+'/users/:loginName', (request, reply) => {
+    let name = request.params.loginName;
+    site.loginExists(name).then((response) => {
+      if (response) {
+        reply.code(409).send(`That login ID ('${name}') is not available. Please choose another.`);
+      } else {
+        reply.code(200).send(`That login ID ('${name}') is available.`);
+      }
+    }).catch((err) => { 
+      handleError(err, request, reply);
+    });
+  })
+
   listener.get(prefix+'/users/:loginName', (request, reply) => {
     let user = getAuth(request);
     if (!user) {
@@ -205,14 +219,23 @@ function initRoutes(site) {
     let user = Object.assign({ uid }, request.body);
     delete user.password; // don't store the original password. especially not in plain text
 
-    // Next, create user with key from tenant storage.
-    // Returns the server key (.secret member is the storage token).
-    site.userCreate(credentials, user)
-    .then(response => {
-      let user = response.user;
-      reply.type(JSON_TYPE).send(JSON.stringify(user));
+    let name = user.login;
+    site.loginExists(name).then((response) => {
+      if (response) {
+        reply.code(409).send(`That login ID ('${name}') is not available. Please choose another.`);
+        return false;
+      } else {
+        // Next, create user with key from tenant storage.
+        // Returns the server key (.secret member is the storage token).
+        site.userCreate(credentials, user)
+        .then(response => {
+          let user = response.user;
+          reply.type(JSON_TYPE).send(JSON.stringify(user));
+        });
+      }
     }).catch(err => { 
       handleError(err, request, reply);
+      return false
     });
   })
 
