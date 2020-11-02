@@ -173,6 +173,9 @@ class Site {
   // like createDoc, but creates a document with credentials that can be checked by userLogin()
   async userCreate(credentials, user) {
     let payload = { credentials, user };
+    if (await this.loginExists(user.login)) {
+      return false; // signals route handler to 409 it.
+    }
     await this.userCreateTree(user.uid);
     await io.filePut(this.userFolder(user.uid, ''), USERMETA, JSON.stringify(payload, 2));
     await this.userLink(user.login, user.uid);
