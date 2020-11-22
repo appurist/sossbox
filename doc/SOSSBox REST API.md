@@ -20,7 +20,7 @@ ________________
 
 ### Users and Profiles (authenticated):
 
-##### GET /profile
+#### GET /profile
 Response body: 
 `{ user profile }`
 Returns the user definition for the current user.
