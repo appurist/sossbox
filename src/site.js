@@ -5,16 +5,22 @@ const {USERMETA, PUBLIC_FOLDER, DATA_FOLDER} = require('./constants')
 
 let debug_level = 0;
 
+function envGet(envKey, envDefault, envPrefix) {
+  let prefix = envPrefix || 'SOSSBOX_';
+  let key = prefix + envKey;
+  return process.env.hasOwnProperty(key) ? process.env[key] : envDefault;
+}
+
 class Site {
   constructor(siteBase) {
     // site defaults here
     this.siteBase = siteBase;
-    this.host = '0.0.0.0';
-    this.port = 0;
-    this.prefix = '/';
-    this.storage = false;
-    this.data = DATA_FOLDER;
-    this.public = PUBLIC_FOLDER;
+    this.host = envGet('HOST', '0.0.0.0');
+    this.port = envGet('PORT', 0);
+    this.prefix = envGet('PREFIX', '/');
+    this.storage = envGet('STORAGE', false);
+    this.data = envGet('DATA', DATA_FOLDER);
+    this.public = envGet('PUBLIC', PUBLIC_FOLDER);
   }
 
   // pass in the per-site config including the relative/absolute data folder.

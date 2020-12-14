@@ -8,6 +8,7 @@
       "type": "node",
       "request": "launch",
       "name": "Launch Program",
+      "envFile": "${workspaceFolder}/.env",
       "program": "${workspaceFolder}/server.js",
       // "args": ["--dump"],
       "skipFiles": [
