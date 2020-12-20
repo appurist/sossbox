@@ -104,7 +104,7 @@ function initRoutes(site) {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     } catch (err) {
       if (err.code !== 'ENOENT') {
-        console.err("MOTD:", site.id, err);
+        console.error("MOTD:", site.id, err);
         reply.code(500).send('motd.md not found')
         return;
       }
