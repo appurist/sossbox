@@ -44,7 +44,7 @@ class Site {
 
     // check if storage location exists
     if (this.siteData) {
-      if (await io.folderExists(this.siteData)) {
+      if (!await io.folderExists(this.siteData)) {
         console.log(`Creating storage for '${this.name}' ('${this.id}') at ${this.siteData}`);
         await io.folderCreate(this.siteData);
       }
