@@ -100,15 +100,16 @@ function initRoutes(site) {
       motd: ''
     };
     try {
-      response.motd = await site.fileGet(site.siteData, 'motd.md');
+      if (site.siteData) {
+        response.motd = await site.fileGet(site.siteData, 'motd.md');
+      }
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     } catch (err) {
       if (err.code !== 'ENOENT') {
         console.error("MOTD:", site.id, err);
-        reply.code(500).send('motd.md not found')
-        return;
       }
       // otherwise reply without the motd
+      response.motd = ''; // make sure it's empty after an exception
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }
   })
