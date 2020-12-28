@@ -8,7 +8,13 @@ let debug_level = 0;
 function envGet(envKey, envDefault, envPrefix) {
   let prefix = envPrefix || 'SOSSBOX_';
   let key = prefix + envKey;
-  return process.env.hasOwnProperty(key) ? process.env[key] : envDefault;
+  let result = process.env.hasOwnProperty(key) ? process.env[key] : envDefault;
+  if (result === '0') return 0;
+  if (result === 'true') return true;
+  if (result === 'false') return false;
+
+  let resultInt = parseInt(result);
+  return resultInt ? resultInt : result;
 }
 
 class Site {
