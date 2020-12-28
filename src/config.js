@@ -11,7 +11,7 @@ let siteMap = new Map;  // note this is a Map, use set() and get()
 
 async function init(rootFolder) {
   // start with the main site
-  let mainSite = new Site(rootFolder);
+  let mainSite = new Site(rootFolder, true);
   await mainSite.initSite(SERVER_CFG);
   siteMap.set(mainSite.id, mainSite);
 
@@ -27,7 +27,7 @@ async function init(rootFolder) {
       mainSite.sitesFolder = sitesFolder;
       for (let folder of sites) {
         let siteBase = path.join(sitesFolder, folder);
-        let site = new Site(siteBase);
+        let site = new Site(siteBase, false);
         await site.initSite(SITE_CFG);
         siteMap.set(site.id, site);
       }

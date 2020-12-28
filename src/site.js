@@ -12,15 +12,23 @@ function envGet(envKey, envDefault, envPrefix) {
 }
 
 class Site {
-  constructor(siteBase) {
+  constructor(siteBase, isMain) {
     // site defaults here
     this.siteBase = siteBase;
+    this.isMain = isMain;
+
     this.host = envGet('HOST', '0.0.0.0');
     this.port = envGet('PORT', 0);
     this.prefix = envGet('PREFIX', '/');
-    this.storage = envGet('STORAGE', false);
-    this.data = envGet('DATA', DATA_FOLDER);
     this.public = envGet('PUBLIC', PUBLIC_FOLDER);
+    this.data = envGet('DATA', DATA_FOLDER);
+    this.storage = envGet('STORAGE', true);
+    this.registration = envGet('REGISTRATION', true);
+    this.secret = envGet('SECRET', 'secret');
+
+    // the main site has a default identity
+    this.id = isMain ? envGet('ID', 'main') : undefined;
+    this.name = isMain ? envGet('NAME', 'SOSSBox') : undefined;
   }
 
   // pass in the per-site config including the relative/absolute data folder.
