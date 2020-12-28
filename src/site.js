@@ -7,8 +7,13 @@ let debug_level = 0;
 
 function envGet(envKey, envDefault, envPrefix) {
   let prefix = envPrefix || 'SOSSBOX_';
-  let key = prefix + envKey;
-  let result = process.env.hasOwnProperty(key) ? process.env[key] : envDefault;
+  let sosskey = prefix + envKey;
+  let result = process.env.hasOwnProperty(sosskey) ? process.env[sosskey] : envDefault;
+  // Allow PORT override in order to support Heroku and similar environments.
+  if ((envKey === 'PORT') && (process.env.hasOwnProperty(envKey))) {
+    result = process.env[envKey];
+  }
+
   if (result === '0') return 0;
   if (result === 'true') return true;
   if (result === 'false') return false;
