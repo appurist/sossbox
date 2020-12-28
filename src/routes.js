@@ -229,9 +229,22 @@ function initRoutes(site) {
         // Next, create user with key from tenant storage.
         // Returns the server key (.secret member is the storage token).
         site.userCreate(credentials, user)
-        .then(response => {
-          let user = response.user;
-          reply.type(JSON_TYPE).send(JSON.stringify(user));
+        .then(data => {
+          let userRec = data.user;
+          let response = Object.assign({ }, userRec)
+          response.token = jwt.sign(userRec, site.secret, { issuer: site.id})
+          // The token does not include more than basic user.
+          // e.g. The token does not include itself, or the MOTD message.
+          site.fileGet('.', 'motd.md').then(motd => {
+            response.motd = motd;
+            reply.type(JSON_TYPE).send(JSON.stringify(response));    
+          })
+          .catch(()=> {
+            // This shouldn't be factored in a fall-thru with the above since the above is async, needs to work like an else
+            reply.type(JSON_TYPE).send(JSON.stringify(response));    
+          });
+        }).catch((err) => {
+          reply.code(401).send('Authentication failed.');
         });
       }
     }).catch(err => { 
