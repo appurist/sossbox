@@ -10,6 +10,9 @@ const config = require('./src/config')
 
 const routes = require('./src/routes')
 
+// read .env and .env.defaults
+require('dotenv-defaults/config');
+
 let mainListener = undefined;
 let mainSite = undefined;
 let staticRoutes = new Set();
