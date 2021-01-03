@@ -16,7 +16,7 @@ Binary executables are attached to each release in [releases](https://github.com
 
 To start a new server, simply run the `sossbox` server executable. There are no parameters or options, these are all configured in the `sossbox.cfg` file.
 
-Standard environment variables can also be used for most of the configuration options, in particular these options and their defaults in parentheses: `PORT` (if present) or `SOSSBOX_PORT` (otherwise 443 or 80 depending on `ssl` subfolder), `SOSSBOX_HOST` ('0'0'0'0), `SOSSBOX_PREFIX` (/), `SOSSBOX_PUBLIC` ('public'), `SOSSBOX_DATA` ('data'), `SOSSBOX_STORAGE` (true), `SOSSBOX_REGISTRATION` (true), `SOSSBOX_SECRET` ('secret'), `SOSSBOX_ID` ('sossbox'), `SOSSBOX_NAME` ('SOSSBox Server').
+Standard environment variables can also be used for most of the configuration options, in particular these options and their defaults in parentheses: `PORT` (if present) or `SOSSBOX_PORT` (otherwise 443 or 80 depending on `ssl` subfolder), `SOSSBOX_HOST` ('0.0.0.0'), `SOSSBOX_PREFIX` (/), `SOSSBOX_PUBLIC` ('public'), `SOSSBOX_DATA` ('data'), `SOSSBOX_STORAGE` (true), `SOSSBOX_REGISTRATION` (true), `SOSSBOX_SECRET` ('secret'), `SOSSBOX_ID` ('sossbox'), `SOSSBOX_NAME` ('SOSSBox Server').
     
 The only *required* field is the `SOSSBOX_SECRET`, which is used to encode the JSON Web Token (JWT) tokens provided in response to a login request, but ideally you should also provide a custom `SOSSBOX_ID` (e.g. 'myserver') and `SOSSBOX_NAME` ("My Server").
 
