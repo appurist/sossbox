@@ -55,7 +55,7 @@ class Site {
 
     // check if static/public folder exists for this site
     if (await io.folderExists(this.sitePublic)) {
-      console.log(`Found public folder for '${this.name}' ('${this.id}') port ${this.port} at ${this.prefix}: ${this.sitePublic}`);
+      // console.log(`Found public folder for '${this.name}' ('${this.id}') port ${this.port} at ${this.prefix}: ${this.sitePublic}`);
     } else {
       this.sitePublic = null;  // clear it so we know not to try to use data that doesn't exist
     }

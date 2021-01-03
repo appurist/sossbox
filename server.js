@@ -96,7 +96,7 @@ function listenerStart(listener, id, host, port) {
     }
 
     let port = listener.server.address().port;
-    console.log(`${id}: listening on port ${port}.`);
+    console.log(`${id}: Now listening on port ${port}.`);
   })
 
   // dump routes at startup?
