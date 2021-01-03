@@ -65,10 +65,6 @@ sossbox.cfg
 ssl/*.crt
 ssl/*.key
 data/
-sites/
-#your own sites/info for testing
-sites.private/
-token.txt
 *\.cmd
 
 # build output files
