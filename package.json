@@ -3,6 +3,7 @@
   "version": "2.0.10102",
   "description": "A Simple Online Storage Server.",
   "main": "server.js",
+  "bin": "server.js",
   "scripts": {
     "start": "node server.js",
     "build": "pkg server.js -t latest -o sossbox",

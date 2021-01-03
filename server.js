@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // Require the framework and instantiate it
 const path = require('path')
 const fastify = require('fastify')
