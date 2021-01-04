@@ -6,6 +6,7 @@
   "bin": "server.js",
   "scripts": {
     "start": "node server.js",
+    "log": "pino-pretty < sossbox.log",
     "build": "pkg server.js -t latest -o sossbox",
     "build:win": "pkg -t latest-win-x64 server.js -o sossbox.exe",
     "build:linux": "pkg -t latest-linux-x64 server.js -o sossbox",
@@ -45,6 +46,7 @@
     "ws": "^7.3.1"
   },
   "devDependencies": {
+    "pino-pretty": "^4.3.0",
     "pkg": "^4.4.9"
   }
 }

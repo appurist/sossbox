@@ -62,7 +62,6 @@ async function getListenerOptions(id, sslPath) {
     let sslcrt = await io.fileGet(sslPath, CRT_FILE)
 
     sslOptions = {
-      logger: false,
       http2: true,
       https: {
         allowHTTP1: true, // fallback support for HTTP1
@@ -125,17 +124,24 @@ async function serverInit() {
 
   let sslPath = path.join(site.siteBase, 'ssl');
   site.options = await getListenerOptions(site.id, sslPath);
-  if (site.loglevel || site.logfile) {
-    let loglevel = site.loglevel || 'warn';
-    let logfile = site.logfile || `sossbox-${site.id}.log`
+  let loglevel = site.loglevel;
+  if ((loglevel === 'false') || (loglevel === '0')) { // it's strings in env/cfg
+    loglevel = false;
+  }
+  if (loglevel) {
+    if (loglevel === 'true') {
+      loglevel = 'error'; // provide a default level
+    }
+    let logfile = site.logfile || `sossbox.log`
     site.options.logger = 
     {
       level: loglevel,
       file: logfile // Will use pino.destination()
     }
-    console.log(`Logging level ${loglevel} for site '${site.id}' in ${logfile}`);
+    console.log(`Logging level '${loglevel}' for site '${site.id}' in ${logfile}`);
   } else {
     site.options.logger = false;
+    console.log(`Logging disabled (${site.loglevel}).`);
   }
 
   // Save the fastify site listener for easy access.

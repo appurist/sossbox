@@ -35,6 +35,8 @@ class Site {
     this.storage = envGet('STORAGE', true);
     this.registration = envGet('REGISTRATION', true);
     this.secret = envGet('SECRET', 'secret');
+    this.loglevel = envGet('LOGLEVEL', 'error');
+    this.logfile = envGet('LOGFILE', 'sossbox.log');
 
     // the main site has a default identity
     this.id = envGet('ID', 'main');
