@@ -9,6 +9,8 @@ const io = require('./src/io')
 const Site = require('./src/site')
 const routes = require('./src/routes')
 
+const Logger = require('./src/logger');
+
 // read .env and .env.defaults
 require('dotenv-defaults/config');
 
@@ -133,11 +135,7 @@ async function serverInit() {
       loglevel = 'error'; // provide a default level
     }
     let logfile = site.logfile || `sossbox.log`
-    site.options.logger = 
-    {
-      level: loglevel,
-      file: logfile // Will use pino.destination()
-    }
+    site.options.logger = new Logger(loglevel, logfile);
     console.log(`Logging level '${loglevel}' for site '${site.id}' in ${logfile}`);
   } else {
     site.options.logger = false;
