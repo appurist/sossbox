@@ -321,7 +321,7 @@ function initRoutes(site) {
       site.fileGet('.', 'motd.md').then(motd => {
         response.motd = motd;
       }).catch(()=> {});
-      request.log.info(`User '${userRec.use.login}' has logged in.`);
+      request.log.info(`User '${userRec.user.login}' has logged in.`);
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }).catch((err) => {
       request.log.warn('Authentication failed.');
