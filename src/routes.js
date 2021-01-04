@@ -6,11 +6,15 @@ const fastifyWebsocket = require('fastify-websocket');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
 
+function logRoute(req, err) {
+  req.log.info({req, err}, 'route handler');
+}
+
 // pass null for reply if it should not send the reply automatically
 function handleError(err, request, reply) {
   if (!err.requestResult) {
     console.error(err.message);
-    request.log.error("Server error (500)")
+    logRoute(request, err);
     if (reply) {
       reply.code(500).send(err.message);
     }
@@ -78,11 +82,22 @@ function initRoutes(site) {
   }
   
   function getAuth(request) {
+    request.token = null;
     if (!request.headers.hasOwnProperty('authorization'))
       return false;
   
     let words = request.headers.authorization.split(' ');
-    return (words[0] === 'Bearer') ? verifyToken (words[1]) : false;
+    if (words[0] !== 'Bearer') {
+      return false;
+    }
+    let token = verifyToken(words[1]);
+    if (!token) {
+      return false;
+    }
+
+    // Update the request for user context.
+    request.token = token;
+    return token;
   }
   
   function isAdmin(request) {
@@ -101,6 +116,8 @@ function initRoutes(site) {
     }
   })
   listener.get(prefix+'/status', async (request, reply) => {
+    getAuth(request); // ignore the optional result, we're just updating the request for logging
+
     let response = {
       version: packageVersion,
       id: site.id,
@@ -113,14 +130,14 @@ function initRoutes(site) {
       if (site.siteData) {
         response.motd = await site.fileGet(site.siteData, 'motd.md');
       }
-      request.log.info('Status request (with MotD).');
+      logRoute(request);
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     } catch (err) {
       if (err.code !== 'ENOENT') {
         console.error("MOTD:", site.id, err);
       }
       // otherwise reply without the motd
-      request.log.info('Status request (without MotD).');
+      logRoute(request);
       response.motd = ''; // make sure it's empty after an exception
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }
@@ -147,7 +164,7 @@ function initRoutes(site) {
 
   listener.get(prefix+'/users', (request, reply) => {
     if (!isAdmin(request)) {
-      request.log.warning('/users request not authorized.');
+      logRoute(request);
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
     }
@@ -168,12 +185,12 @@ function initRoutes(site) {
   listener.get(prefix+'/profile', async (request, reply) => {
     let user = getAuth(request);
     if (!user) {
-      request.log.warning('/profile request, not authorized.');
+      request.log.warning({req: request}, '/profile request, not authorized.');
       reply.code(401).send('Not authorized.');
       return;
     }
     let meta = await site.userByUID(user.uid, "meta");
-    request.log.info('/profile request');
+    request.log.info({req: request}, 'route handler');
     reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
   })
 
@@ -202,6 +219,7 @@ function initRoutes(site) {
       } else {
         reply.code(200).send(`That login ID ('${name}') is available.`);
       }
+      logRoute(request);
     }).catch((err) => { 
       handleError(err, request, reply);
     });
@@ -211,15 +229,18 @@ function initRoutes(site) {
     let user = getAuth(request);
     if (!user) {
       reply.code(401).send('Not authorized.');
+      logRoute(request);
       return;
     }
     let login = request.params.loginName;
     if ((login !== user.login) && !isAdmin(request)) {
       reply.code(403).send('Forbidden: user is not authorized.');
+      logRoute(request);
       return;
     }
     site.userByLogin(login).then((response) => {
       reply.type(JSON_TYPE).send(JSON.stringify(response.user));    
+      logRoute(request);
     }).catch((err) => { 
       handleError(err, request, reply);
     });
