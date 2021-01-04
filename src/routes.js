@@ -278,13 +278,6 @@ function initRoutes(site) {
   })
 
   listener.delete(prefix+'/users/:uid', (request, reply) => {
-    if (!site.registration) {
-      if (!site.registration) {
-        reply.code(405).send('User account deletion (and registration) is disabled.');
-        return false;
-      }
-    }
-
     let user = getAuth(request);
     if (!user) {
       request.log.warn('User delete, not authorized.');
