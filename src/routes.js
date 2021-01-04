@@ -10,17 +10,24 @@ const JSON_TYPE = 'application/json; charset=utf-8';
 function handleError(err, request, reply) {
   if (!err.requestResult) {
     console.error(err.message);
-    if (reply) reply.code(500).send(err.message);
+    request.log.error("Server error (500)")
+    if (reply) {
+      reply.code(500).send(err.message);
+    }
     return;
   }
 
   let result = err.requestResult;
   if (result.responseContent.errors.length === 1) {
     let details = result.responseContent.errors[0];
-    console.error(`error ${result.statusCode} on ${result.method}, ${details.code}: ${details.description}`)
+    let msg = `error ${result.statusCode} on ${result.method}, ${details.code}: ${details.description}`;
+    console.error(msg);
+    request.log.error(msg);
     if (reply) reply.code(result.statusCode).send(details.description);
   } else {
-    console.error(`error ${result.statusCode} on ${result.method}:`);
+    let msg = `error ${result.statusCode} on ${result.method}:`;
+    console.error(msg);
+    request.log.error(msg);
     let firstCode = null;
     let firstText = null;
     for (let details of result.responseContent.errors) {
@@ -51,9 +58,13 @@ function initRoutes(site) {
 
   // some nested functions so we have siteCfg and mySite
   function verifyToken(token) {
+    if (!token) {
+      console.warn("Missing token.");
+      return null;
+    }
     let result = jwt.verify(token, site.secret, function(err, decoded) {
       if (err) {
-        console.error(err);
+        console.warn("Error verifying JWT token value:", err.message);
         return null;
       }
   
@@ -102,12 +113,14 @@ function initRoutes(site) {
       if (site.siteData) {
         response.motd = await site.fileGet(site.siteData, 'motd.md');
       }
+      request.log.info('Status request (with MotD).');
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     } catch (err) {
       if (err.code !== 'ENOENT') {
         console.error("MOTD:", site.id, err);
       }
       // otherwise reply without the motd
+      request.log.info('Status request (without MotD).');
       response.motd = ''; // make sure it's empty after an exception
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }
@@ -134,13 +147,16 @@ function initRoutes(site) {
 
   listener.get(prefix+'/users', (request, reply) => {
     if (!isAdmin(request)) {
+      request.log.warning('/users request not authorized.');
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
     }
     site.folderGet('users').then((response) => {
       if (response) {
+        request.log.warning('/users request');
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
       } else {
+        request.log.warning('/users request, none found.');
         reply.code(404).send('users folder not found')
       }
     }).catch((err) => { 
@@ -152,10 +168,12 @@ function initRoutes(site) {
   listener.get(prefix+'/profile', async (request, reply) => {
     let user = getAuth(request);
     if (!user) {
+      request.log.warning('/profile request, not authorized.');
       reply.code(401).send('Not authorized.');
       return;
     }
     let meta = await site.userByUID(user.uid, "meta");
+    request.log.info('/profile request');
     reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
   })
 
@@ -163,6 +181,7 @@ function initRoutes(site) {
   listener.put(prefix+'/profile', async (request, reply) => {
     let user = getAuth(request);
     if (!user) {
+      request.log.warn('/profile request, not authorized');
       reply.code(401).send('Not authorized.');
       return;
     }
@@ -170,6 +189,7 @@ function initRoutes(site) {
     let meta = site.userByUID(user.uid, "meta");
     meta.user = Object.assign({}, meta.user, request.body);
     await userDocReplace(user, '', "meta", meta);
+    request.log.info('/profile PUT');
     reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
   })
 
@@ -209,6 +229,7 @@ function initRoutes(site) {
   listener.post(prefix+'/users', (request, reply) => {
     if (!site.registration) {
       if (!site.registration) {
+        request.log.warn('User registration is disabled.');
         reply.code(405).send('New user registration is disabled.');
         return false;
       }
@@ -222,6 +243,7 @@ function initRoutes(site) {
     let name = user.login;
     site.loginExists(name).then((response) => {
       if (response) {
+        request.log.warn('User registration: duplicate user.');
         reply.code(409).send(`That login ID ('${name}') is not available. Please choose another.`);
         return false;
       } else {
@@ -236,14 +258,17 @@ function initRoutes(site) {
           // e.g. The token does not include itself, or the MOTD message.
           site.fileGet('.', 'motd.md').then(motd => {
             response.motd = motd;
+            request.log.info('User registration: successful.');
             reply.type(JSON_TYPE).send(JSON.stringify(response));    
           })
           .catch(()=> {
             // This shouldn't be factored in a fall-thru with the above since the above is async, needs to work like an else
+            request.log.error('User registration: failed.');
             reply.type(JSON_TYPE).send(JSON.stringify(response));    
           });
         }).catch((err) => {
-          reply.code(401).send('Authentication failed.');
+          request.log.error('User registration: create failed.');
+          reply.code(401).send('Registration failed.');
         });
       }
     }).catch(err => { 
@@ -262,15 +287,18 @@ function initRoutes(site) {
 
     let user = getAuth(request);
     if (!user) {
+      request.log.warn('User delete, not authorized.');
       reply.code(401).send('Not authorized.');
       return;
     }
     let uid = request.params.uid;
     if ((uid !== user.uid) && !isAdmin(request)) {
+      request.log.warn('User delete, user not authorized.');
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
     }
     site.userDelete(uid).then((response) => {
+      request.log.info('User delete complete.');
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
       return;
     }).catch((err) => { 
@@ -280,6 +308,7 @@ function initRoutes(site) {
 
   listener.post(prefix+'/login', (request, reply) => {
     if (!site.secret) {
+      request.log.error('Login failed, secret is not set.');
       console.error(`${site.id}: secret is not set.`);
       return false;
     }
@@ -288,6 +317,7 @@ function initRoutes(site) {
     .then(userRec => {
       let testhash = md5(request.body.password);
       if (testhash !== userRec.credentials.hash) {
+        request.log.warn('Authentication failed, invalid password.');
         reply.code(401).send('Authentication failed, invalid password.');
         return;
       }
@@ -298,8 +328,10 @@ function initRoutes(site) {
       site.fileGet('.', 'motd.md').then(motd => {
         response.motd = motd;
       }).catch(()=> {});
+      request.log.info(`User '${userRec.use.login}' has logged in.`);
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }).catch((err) => {
+      request.log.warn('Authentication failed.');
       reply.code(401).send('Authentication failed.');
     });
   });
@@ -307,17 +339,20 @@ function initRoutes(site) {
   listener.post(prefix+'/logout', (request, reply) => {
     let user = getAuth(request);
     if (!user) {
+      request.log.warn("Authorization error during logout.");
       reply.code(401).send('Not authorized.');
       return;
     }
 
     let response = { message: 'You have been logged out.', result: 'OK' };
+    request.log.info(`User '${user.login}' has logged out.`);
     reply.type(JSON_TYPE).send(JSON.stringify(response));    
   });
 
   listener.get(prefix+'/projects', async (request, reply) => {
     let user = getAuth(request);
     if (!user) {
+      request.log.warn("Projects list: Not authorized.");
       reply.code(401).send('Not authorized.');
       return;
     }
@@ -326,6 +361,7 @@ function initRoutes(site) {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));
       } else {
+        request.log.warn("Projects list: unauthorized path.");
         reply.code(401).send('Unauthorized path.');
       }
     });
@@ -334,6 +370,7 @@ function initRoutes(site) {
   listener.get(prefix+'/projects/:id', async (request, reply) => {
     let user = await getAuth(request);
     if (!user) {
+      request.log.warn("Project info: Not authorized.");
       reply.code(401).send('Not authorized.');
       return;
     }
@@ -349,6 +386,7 @@ function initRoutes(site) {
   listener.post(prefix+'/projects', async (request, reply) => {
     let user = await getAuth(request);
     if (!user) {
+      request.log.warn("Project POST: not authorized.");
       reply.code(401).send('Not authorized.');
       return;
     }
@@ -369,12 +407,14 @@ function initRoutes(site) {
   listener.delete(prefix+'/projects/:uid', async (request, reply) => {
     let user = await getAuth(request);
     if (!user) {
+      request.log.warn("Project delete: not authorized.");
       reply.code(401).send('Not authorized.');
       return;
     }
 
     let uid = request.params.uid;
     site.userDocDelete(user.uid, 'projects', uid).then((response) => {
+      request.log.info("Project deleted.");
       reply.type(JSON_TYPE).send(JSON.stringify(response));
       return;
     }).catch((err) => { 
