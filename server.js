@@ -5,12 +5,11 @@ const fastify = require('fastify')
 const fastifyCORS = require('fastify-cors')
 const fastifyStatic = require('fastify-static');
 const {SERVER_CFG, KEY_FILE, CRT_FILE} = require('./src/constants')
+
+const log = require('./src/logger');
 const io = require('./src/io')
 const Site = require('./src/site')
 const routes = require('./src/routes')
-
-const Logger = require('./src/logger');
-let logger = console; // for now
 
 // read .env and .env.defaults
 require('dotenv-defaults/config');
@@ -28,7 +27,7 @@ let pid = undefined;  // the npid instance
 
 function handleShutdown(rc) {
   if (listener) {
-    logger.info(`Closing main listener...`);
+    log.info(`Closing main listener...`);
     listener.close();
   }
   process.exit(rc);
@@ -40,16 +39,16 @@ try {
   pid = npid.create(PIDFILE);
   pid.removeOnExit();
 } catch (err) {
-  logger.info(err);
+  log.info(err);
   process.exit(1);
 }
 // pid file handling requires process.exit to be called on SIGTERM and SIGINT, which we want anyway.
 process.on('SIGTERM', () => {
-  logger.info('Terminate (SIGTERM) signal received.');
+  log.info('Terminate (SIGTERM) signal received.');
   handleShutdown(0);
 });
 process.on('SIGINT', () => {
-  logger.info('Interrupt (SIGINT) signal received.');
+  log.info('Interrupt (SIGINT) signal received.');
   handleShutdown(0);
 });
 
@@ -72,18 +71,18 @@ async function getListenerOptions(id, sslPath) {
         cert: sslcrt
       }
     }
-    logger.info(`${id}: Enabled HTTPS via SSL certificate files.`);
+    log.info(`${id}: Enabled HTTPS via SSL certificate files.`);
     return sslOptions;
   } else {
-    logger.warn(`${id}: HTTP only. HTTPS disabled. (SSL certificate files NOT provided.)`);
+    log.warn(`${id}: HTTP only. HTTPS disabled. (SSL certificate files NOT provided.)`);
     return options;
   }
 }
 
 function onError(err) {
-  logger.error("Server error:", err.message);
+  log.error("Server error:", err.message);
   if (err.code === 'EADDRINUSE') {
-    logger.info(" To continue: Restart this server after changing the indicated port number, or stopping the conflicting service.");
+    log.info(" To continue: Restart this server after changing the indicated port number, or stopping the conflicting service.");
   }
   handleShutdown(1);  //mandatory return code (as per the Node.js docs)
 }
@@ -94,18 +93,18 @@ function listenerStart(listener, id, host, port) {
   // Start the server listening.
   listener.listen(port, host, (err) => {
     if (err) {
-      logger.error(err.message);
+      log.error(err.message);
       handleShutdown(1);
     }
 
     let port = listener.server.address().port;
-    logger.info(`${id}: Now listening on port ${port}.`);
+    log.info(`${id}: Now listening on port ${port}.`);
   })
 
   // dump routes at startup?
   if (process.argv.includes('--dump')) {
-    logger.warn(`Routes for '${id}'on port ${port}:`)
-    listener.ready(() => { logger.info(listener.printRoutes()) })
+    log.warn(`Routes for '${id}'on port ${port}:`)
+    listener.ready(() => { log.info(listener.printRoutes()) })
   }
 }
 
@@ -115,7 +114,7 @@ let rootFolder = process.cwd();
 async function serverInit() {
   site = new Site(rootFolder);
   if (!site) {
-    logger.error("Environment configuration error: ", site);
+    log.error("Environment configuration error: ", site);
     return null;
   }
   await site.initSite(SERVER_CFG);
@@ -123,7 +122,7 @@ async function serverInit() {
   if (site.hasOwnProperty("cors")) {
     corsOptions = mainsite.cors;  // usually  { origin: true }
   }
-  logger.info("CORS support:", corsOptions)
+  log.info("CORS support:", corsOptions)
 
   let sslPath = path.join(site.siteBase, 'ssl');
   site.options = await getListenerOptions(site.id, sslPath);
@@ -135,9 +134,10 @@ async function serverInit() {
     loglevel = 'error'; // provide a default level
   }
   let logfile = site.logfile || `sossbox.log`
-  logger = new Logger(loglevel, logfile);
-  site.options.logger = logger;
-  logger.info(`Logging level '${loglevel}' for site '${site.id}' in ${logfile}`);
+  log.init(loglevel, logfile);
+
+  site.options.logger = log;
+  log.info(`Logging level '${loglevel}' for site '${site.id}' in ${logfile}`);
 
   // Save the fastify site listener for easy access.
   site.listener = fastify(site.options);
@@ -150,7 +150,7 @@ async function serverInit() {
   }
 
   if (site.sitePublic) {
-    logger.info(`${site.id}: Serving static files on port ${site.port} at '${site.prefix}' from ${site.sitePublic}`);
+    log.info(`${site.id}: Serving static files on port ${site.port} at '${site.prefix}' from ${site.sitePublic}`);
     let staticOptions = {
       // list: true,
       root: site.sitePublic
@@ -175,7 +175,7 @@ async function serverInit() {
   try {
     listenerStart(listener, id, host, port);
   } catch (err) {
-    logger.error(err.message)
+    log.error(err.message)
   }
   return listener;
 }
@@ -185,6 +185,6 @@ async function serverInit() {
   try {
     await serverInit();  // returns a fastify instance
   } catch (e) {
-    logger.error(e);
+    log.error(e.message);
   }
 })();
