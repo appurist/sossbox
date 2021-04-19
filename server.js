@@ -6,7 +6,7 @@ const fastifyCORS = require('fastify-cors')
 const fastifyStatic = require('fastify-static');
 const {SERVER_CFG, KEY_FILE, CRT_FILE} = require('./src/constants')
 
-const log = require('./src/logger');
+const log = require('./src/log');
 const io = require('./src/io')
 const Site = require('./src/site')
 const routes = require('./src/routes')

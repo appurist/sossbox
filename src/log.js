@@ -7,7 +7,8 @@ const DEBUG = 1;
 const INFO = 3;
 const WARN = 5;
 const ERROR = 7;
-const FATAL = 9;
+const FATAL = 8;
+const FORCE = 9;  // always comes out but displayed like INFO.
 
 function micros(ms) {
   return Math.round(ms*1000);
@@ -47,6 +48,7 @@ function setLevel(level) {
       case 'warn': logLevel = WARN; break;
       case 'error': logLevel = ERROR; break;
       case 'fatal': logLevel = FATAL; break;
+      case 'force': logLevel = FORCE; break;
       default: logLevel = WARN;
     }
   } else {
@@ -65,6 +67,7 @@ function getTimestamp(when) {
 }
 
 function levelPrefix(level) {
+  if (level >= FORCE) return 'INFO';
   if (level >= FATAL) return 'FATAL';
   if (level >= ERROR) return 'ERROR';
   if (level >= WARN) return 'WARN';
@@ -79,8 +82,10 @@ function log(level, msg) {
   }
 
   let stamp = getTimestamp(new Date());
-  let prefix = levelPrefix(level);
   msg = stamp + ' [' + levelPrefix(level) + '] ' + msg;
+  if (level >= FORCE)
+    console.log(msg);
+  else
   if (level >= ERROR)
     console.error(msg);
   else
@@ -103,5 +108,6 @@ function info(msg) { log(INFO, msg); }
 function warn(msg) { log(WARN, msg); }
 function error(msg) { log(ERROR, msg); }
 function fatal(msg) { log(FATAL, msg); }
+function force(msg) { log(FORCE, msg); }
 
-module.exports = { OFF, DEBUG, INFO, WARN, ERROR, FATAL, init, log, debug, info, warn, error, fatal};
+module.exports = { OFF, DEBUG, INFO, WARN, ERROR, FATAL, init, log, debug, info, warn, error, fatal, force};

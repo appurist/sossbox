@@ -1,8 +1,9 @@
 const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
-
 const fastifyWebsocket = require('fastify-websocket');
+
+const log = require('./log');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
 
@@ -13,7 +14,7 @@ function logRoute(req, err) {
 // pass null for reply if it should not send the reply automatically
 function handleError(err, request, reply) {
   if (!err.requestResult) {
-    console.error(err.message);
+    log.error(err.message);
     logRoute(request, err);
     if (reply) {
       reply.code(500).send(err.message);
@@ -25,17 +26,17 @@ function handleError(err, request, reply) {
   if (result.responseContent.errors.length === 1) {
     let details = result.responseContent.errors[0];
     let msg = `error ${result.statusCode} on ${result.method}, ${details.code}: ${details.description}`;
-    console.error(msg);
+    log.error(msg);
     request.log.error(msg);
     if (reply) reply.code(result.statusCode).send(details.description);
   } else {
     let msg = `error ${result.statusCode} on ${result.method}:`;
-    console.error(msg);
+    log.error(msg);
     request.log.error(msg);
     let firstCode = null;
     let firstText = null;
     for (let details of result.responseContent.errors) {
-      console.warn(`  ${details.code}: ${details.description}`);
+      log.warn(`  ${details.code}: ${details.description}`);
       if (!first) {
         firstCode = details.code;
         firstText = details.description;
@@ -51,8 +52,8 @@ function handleError(err, request, reply) {
 }
 
 let packageVersion = require('../package.json').version;
-console.log('SOSSBox '+packageVersion);
-// console.log('Node.js '+process.version);
+log.force('SOSSBox '+packageVersion);
+// log.info('Node.js '+process.version);
 
 // This initializes the SOSS routes, and optionally user registration if siteCfg.registration is set.
 function initRoutes(site) {
@@ -63,16 +64,16 @@ function initRoutes(site) {
   // some nested functions so we have siteCfg and mySite
   function verifyToken(token) {
     if (!token) {
-      console.warn("Missing token.");
+      log.warn("Missing token.");
       return null;
     }
     let result = jwt.verify(token, site.secret, function(err, decoded) {
       if (err) {
-        console.warn("Error verifying JWT token value:", err.message);
+        log.warn("Error verifying JWT token value:", err.message);
         return null;
       }
   
-      // console.log("Storing user for token:", decoded);
+      // log.info("Storing user for token:", decoded);
       let user = decoded;
       user.token = token;
       user.authenticated = true;
@@ -107,7 +108,7 @@ function initRoutes(site) {
     
   // Declare a route
   let prefix = (site.prefix === '/') ? '' : site.prefix;  // store '/' as an empty string for concatenation
-  // console.log(`${site.id}: Enabling storage API ...`)
+  // log.info(`${site.id}: Enabling storage API ...`)
   listener.get(prefix+'/ping', async (request, reply) => {
     try {
       reply.type(JSON_TYPE).send(JSON.stringify({sossbox: site.id}));    
@@ -134,7 +135,7 @@ function initRoutes(site) {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     } catch (err) {
       if (err.code !== 'ENOENT') {
-        console.error("MOTD:", site.id, err);
+        log.error("MOTD:", site.id, err);
       }
       // otherwise reply without the motd
       logRoute(request);
@@ -145,20 +146,20 @@ function initRoutes(site) {
 
   // support the websocket
   listener.get(prefix+'/updates', { websocket: true }, (connection, req) => {
-    console.log("socket connected.");
+    log.info("socket connected.");
     connection.socket.on('message', (message) => {
       if (message.startsWith('user,')) {
-        console.log("socket message: user,***");
+        log.info("socket message: user,***");
       } else {
-        console.log("socket message:", message);
+        log.info("socket message:", message);
       }
       connection.socket.send('{ "message": "none"}');
     })
     connection.socket.on('open', (connection, ev) => {
-      console.log("socket connected:", connection, ev);
+      log.info("socket connected:", connection, ev);
     })
     connection.socket.on('close', (code, reason) => {
-      console.log("socket disconnected:", code, reason);
+      log.info("socket disconnected:", code, reason);
     })
   })  
 
@@ -323,7 +324,7 @@ function initRoutes(site) {
   listener.post(prefix+'/login', (request, reply) => {
     if (!site.secret) {
       request.log.error('Login failed, secret is not set.');
-      console.error(`${site.id}: secret is not set.`);
+      log.error(`${site.id}: secret is not set.`);
       return false;
     }
 

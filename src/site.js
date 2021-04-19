@@ -1,5 +1,6 @@
 const path = require('path');
 const io = require('./io');
+const log = require('./log');
 
 const {USERMETA, PUBLIC_FOLDER, DATA_FOLDER} = require('./constants')
 
@@ -73,7 +74,7 @@ class Site {
         // Create initial site subfolders if necessary.
         await io.folderCreate(path.join(this.siteData, 'users'));
         await io.folderCreate(path.join(this.siteData, 'logins'));
-        console.log(`Storage ready for '${this.name}' ('${this.id}'): ${this.siteData}`);
+        log.force(`Storage ready for '${this.name}' ('${this.id}'): ${this.siteData}`);
       } else {
         this.siteData = null; // clear it so we know not to try to use data that doesn't exist
       }
