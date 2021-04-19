@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const fsp = fs.promises;
+const { time } = require('console');
 
 const OFF = 0;
 const DEBUG = 1;
@@ -29,27 +29,14 @@ function executableFolder() {
 
 let execFolder = executableFolder();
 let logPath = path.join(execFolder,'sossbox.log');
-let logFile = null;
 let logLevel = WARN;
 
-init(logLevel, 'sossbox.log');
+init(logLevel, 'sossbox.log')
 
 // loglevel must be a normal loglevel string from the levels array above.
-async function init(level, fn) {
-  try {
-    setLevel(level);
-
-    let newLogPath = path.isAbsolute(fn) ? path.resolve(fn) : path.resolve(execFolder, fn);
-    if (logFile && (newLogPath !== logPath)) {
-      await logFile.close();
-      logFile = null;
-    }
-    if (!logFile) {
-      await fsp.open(newLogPath, 'w');
-    }
-  } catch (err) {
-    console.error(err.message);
-  }
+function init(level, fn) {
+  setLevel(level);
+  logPath = path.isAbsolute(fn) ? path.resolve(fn) : path.resolve(execFolder, fn);
 }
 
 function setLevel(level) {
@@ -67,22 +54,48 @@ function setLevel(level) {
   }
 }
 
-function log(level, msg) {
-  try {
-    if (level < logLevel) {
-      return; // below the reporting threshold, nothing to do.
-    }
+function twoDigits(n) {
+  return (n >=0) && (n <= 9) ? '0'+n : ''+n;
+}
 
+function getTimestamp(when) {
+  let dateStamp = `${when.getFullYear()}-${twoDigits(when.getMonth()+1)}-${twoDigits(when.getDate())}`;
+  let timeStamp = `${twoDigits(when.getHours())}:${twoDigits(when.getMinutes())}:${twoDigits(when.getSeconds())}`;
+  return dateStamp + ' ' + timeStamp;
+}
+
+function levelPrefix(level) {
+  if (level >= FATAL) return 'FATAL';
+  if (level >= ERROR) return 'ERROR';
+  if (level >= WARN) return 'WARN';
+  if (level >= INFO) return 'INFO';
+  if (level >= DEBUG) return 'DEBUG';
+}
+
+let errors = 0;
+function log(level, msg) {
+  if (level < logLevel) {
+    return; // below the reporting threshold, nothing to do.
+  }
+
+  let stamp = getTimestamp(new Date());
+  let prefix = levelPrefix(level);
+  msg = stamp + ' [' + levelPrefix(level) + '] ' + msg;
+  if (level >= ERROR)
+    console.error(msg);
+  else
+  if (level >= WARN)
+    console.warn(msg);
+  else
     console.log(msg);
-    logFile.appendFile(msg)
-    .then()
-    .catch((err)=>{
-      console.error(err.message);
-    });
-  }
-  catch(err) {
-    console.error(err.message);
-  }
+
+  fs.appendFile(logPath, msg+'\n', (err) => {
+    if (err) {
+      if (errors++ === 0) {
+        console.error(err.message);
+      }
+    }
+  });
 }
 
 function debug(msg) { log(DEBUG, msg); }
