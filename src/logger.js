@@ -1,11 +1,13 @@
-let level = [ ];
-level['trace'] = 10;
-level['debug'] = 20;
-level['info'] = 30;
-level['warn'] = 40;
-level['error'] = 50;
-level['fatal'] = 60;
-level['trace'] = Infinity;
+const simpleLogger = require('simple-node-logger');
+
+let levels = [ ];
+levels['trace'] = 10;
+levels['debug'] = 20;
+levels['info'] = 30;
+levels['warn'] = 40;
+levels['error'] = 50;
+levels['fatal'] = 60;
+levels['trace'] = Infinity;
 
 function micros(ms) {
   return Math.round(ms*1000);
@@ -24,51 +26,58 @@ function userText(arg) {
   return token.authenticated ? `user '${token.login}' (${token.uid}) ` : 'unauthenticated ';
 }
 
-function report(lvl, arg, arg2) {
-  let user = userText(arg);
-  if (arg.res) {
-    let ch = (arg2 === 'request completed') ? '<' : '-';
-    console.info(`${ch} #${arg.res.request.id} ${arg.res.request.method} ${arg.res.request.url} (${arg2}) ${lvl.toUpperCase()}: ${arg.res.request.ip} ${user}[${micros(arg.responseTime)}µs]`);
-    return;
-  }
-  if (arg.req) {
-    let ch = (arg2 === 'incoming request') ? '>' : '-';
-    console.info(`${ch} #${arg.req.id} ${arg.req.method} ${arg.req.url} (${arg2}) ${lvl.toUpperCase()}: ${arg.req.ip} ${user}`);
-    return;
-  }
-
-  console.info([arg, arg2, user].join(': '));
-}
-
 class Logger { 
-  // loglevel can be a string in the level array, or a number directly.
-  constructor(loglevel, logfile) {
-    this.logfile = logfile;
-    this.loglevel = this.numFromLevel(loglevel);
+  // loglevel must be a normal loglevel string from the levels array above.
+  constructor(_loglevel, _logfile) {
+    this.logfile = _logfile;
+    this.level = _loglevel;
+    this.levelNum = this.numFromLevel(_loglevel);
+    let options = { level: _loglevel, loggerConfigFile: _logfile}
+    this.log = simpleLogger.createSimpleLogger(options);
+    this.log.setLevel(_loglevel);
   }
 
   child(arg) { return this; }
 
-  setlevel(loglevel) {
-    this.loglevel = this.numFromLevel(loglevel);
+  setlevel(_loglevel) {
+    this.level = _loglevel;
+    this.levelNum = this.numFromLevel(_loglevel);
+    this.log.setLevel(_loglevel);
   }
 
   numFromLevel(loglevel) {
     if (typeof loglevel === 'string') {
-      if (level.hasOwnProperty(loglevel)) {
-         return level[loglevel];
+      if (levels.hasOwnProperty(loglevel)) {
+         return levels[loglevel];
       }
-      return level['warn'];
+      return levels['warn'];
      }
      return loglevel;
   }
 
-  trace(arg, arg2) { if (this.loglevel >= level['trace']) report('TRACE', arg, arg2); }
-  debug(arg, arg2) { if (this.loglevel >= level['debug']) report('DEBUG', arg, arg2); }
-  info(arg, arg2) { if (this.loglevel >= level['info']) report('INFO', arg, arg2); }
-  warn(arg, arg2) { if (this.loglevel >= level['warn']) report('WARN', arg, arg2); }
-  error(arg, arg2) { if (this.loglevel >= level['error']) report('ERROR', arg, arg2); }
-  fatal(arg, arg2) { if (this.loglevel >= level['fatal']) report('FATAL', arg, arg2); }
+  report(lvl, arg, arg2) {
+    let user = userText(arg);
+    if (arg.res) {
+      let ch = (arg2 === 'request completed') ? '<' : '-';
+      this.log.info(`${ch} #${arg.res.request.id} ${arg.res.request.method} ${arg.res.request.url} (${arg2}) ${lvl.toUpperCase()}: ${arg.res.request.ip} ${user}[${micros(arg.responseTime)}µs]`);
+      return;
+    }
+    if (arg.req) {
+      let ch = (arg2 === 'incoming request') ? '>' : '-';
+      this.log.info(`${ch} #${arg.req.id} ${arg.req.method} ${arg.req.url} (${arg2}) ${lvl.toUpperCase()}: ${arg.req.ip} ${user}`);
+      return;
+    }
+  
+    this.log.info([arg, arg2, user].join(': '));
+  }
+  
+  trace(arg, arg2) { if (this.levelNum >= levels['trace']) this.report('TRACE', arg, arg2); }
+  debug(arg, arg2) { if (this.levelNum >= levels['debug']) this.report('DEBUG', arg, arg2); }
+  log(arg, arg2) { if (this.levelNum >= levels['info']) this.report('INFO', arg, arg2); }
+  info(arg, arg2) { if (this.levelNum >= levels['info']) this.report('INFO', arg, arg2); }
+  warn(arg, arg2) { if (this.levelNum >= levels['warn']) this.report('WARN', arg, arg2); }
+  error(arg, arg2) { if (this.levelNum >= levels['error']) this.report('ERROR', arg, arg2); }
+  fatal(arg, arg2) { if (this.levelNum >= levels['fatal']) this.report('FATAL', arg, arg2); }
 }
 
 module.exports = Logger;
