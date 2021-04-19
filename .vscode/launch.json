@@ -11,6 +11,7 @@
       "envFile": "${workspaceFolder}/.env",
       "program": "${workspaceFolder}/server.js",
       // "args": ["--dump"],
+      "runtimeArgs": ["--trace-warnings"],
       "skipFiles": [
         "<node_internals>/**"
       ]

@@ -1,74 +1,107 @@
-let level = [ ];
-level['trace'] = 10;
-level['debug'] = 20;
-level['info'] = 30;
-level['warn'] = 40;
-level['error'] = 50;
-level['fatal'] = 60;
-level['trace'] = Infinity;
+const path = require('path');
+const fs = require('fs');
+const { time } = require('console');
+
+const OFF = 0;
+const DEBUG = 1;
+const INFO = 3;
+const WARN = 5;
+const ERROR = 7;
+const FATAL = 9;
 
 function micros(ms) {
   return Math.round(ms*1000);
 }
 
-function userText(arg) {
-  let token;
-  if (arg.req && arg.req.token) {
-    token = arg.req.token;
-  } else
-  if (arg.res && arg.res.request && arg.res.request.token) {
-    token = arg.res.request.token;
-  }
-  if (!token) return '';
-
-  return token.authenticated ? `user '${token.login}' (${token.uid}) ` : 'unauthenticated ';
+function rootname(fn) {
+  return path.basename(path.basename(fn, '.exe'), '.EXE');
 }
 
-function report(lvl, arg, arg2) {
-  let user = userText(arg);
-  if (arg.res) {
-    let ch = (arg2 === 'request completed') ? '<' : '-';
-    console.info(`${ch} #${arg.res.request.id} ${arg.res.request.method} ${arg.res.request.url} (${arg2}) ${lvl.toUpperCase()}: ${arg.res.request.ip} ${user}[${micros(arg.responseTime)}µs]`);
-    return;
-  }
-  if (arg.req) {
-    let ch = (arg2 === 'incoming request') ? '>' : '-';
-    console.info(`${ch} #${arg.req.id} ${arg.req.method} ${arg.req.url} (${arg2}) ${lvl.toUpperCase()}: ${arg.req.ip} ${user}`);
-    return;
+function executableFolder() {
+  let arg = 0;
+  let root = rootname(process.argv[0]);
+  if (root.toLowerCase() === 'node') {
+    arg = 1;
   }
 
-  console.info([arg, arg2, user].join(': '));
+  return path.dirname(process.argv[arg]);
 }
 
-class Logger { 
-  // loglevel can be a string in the level array, or a number directly.
-  constructor(loglevel, logfile) {
-    this.logfile = logfile;
-    this.loglevel = this.numFromLevel(loglevel);
+let execFolder = executableFolder();
+let logPath = path.join(execFolder,'sossbox.log');
+let logLevel = WARN;
+
+init(logLevel, 'sossbox.log')
+
+// loglevel must be a normal loglevel string from the levels array above.
+function init(level, fn) {
+  setLevel(level);
+  logPath = path.isAbsolute(fn) ? path.resolve(fn) : path.resolve(execFolder, fn);
+}
+
+function setLevel(level) {
+  if (typeof level === 'string') {
+    switch (level) {
+      case 'debug': logLevel = DEBUG; break;
+      case 'info': logLevel = INFO; break;
+      case 'warn': logLevel = WARN; break;
+      case 'error': logLevel = ERROR; break;
+      case 'fatal': logLevel = FATAL; break;
+      default: logLevel = WARN;
+    }
+  } else {
+    logLevel = level;
+  }
+}
+
+function twoDigits(n) {
+  return (n >=0) && (n <= 9) ? '0'+n : ''+n;
+}
+
+function getTimestamp(when) {
+  let dateStamp = `${when.getFullYear()}-${twoDigits(when.getMonth()+1)}-${twoDigits(when.getDate())}`;
+  let timeStamp = `${twoDigits(when.getHours())}:${twoDigits(when.getMinutes())}:${twoDigits(when.getSeconds())}`;
+  return dateStamp + ' ' + timeStamp;
+}
+
+function levelPrefix(level) {
+  if (level >= FATAL) return 'FATAL';
+  if (level >= ERROR) return 'ERROR';
+  if (level >= WARN) return 'WARN';
+  if (level >= INFO) return 'INFO';
+  if (level >= DEBUG) return 'DEBUG';
+}
+
+let errors = 0;
+function log(level, msg) {
+  if (level < logLevel) {
+    return; // below the reporting threshold, nothing to do.
   }
 
-  child(arg) { return this; }
+  let stamp = getTimestamp(new Date());
+  let prefix = levelPrefix(level);
+  msg = stamp + ' [' + levelPrefix(level) + '] ' + msg;
+  if (level >= ERROR)
+    console.error(msg);
+  else
+  if (level >= WARN)
+    console.warn(msg);
+  else
+    console.log(msg);
 
-  setlevel(loglevel) {
-    this.loglevel = this.numFromLevel(loglevel);
-  }
-
-  numFromLevel(loglevel) {
-    if (typeof loglevel === 'string') {
-      if (level.hasOwnProperty(loglevel)) {
-         return level[loglevel];
+  fs.appendFile(logPath, msg+'\n', (err) => {
+    if (err) {
+      if (errors++ === 0) {
+        console.error(err.message);
       }
-      return level['warn'];
-     }
-     return loglevel;
-  }
-
-  trace(arg, arg2) { if (this.loglevel >= level['trace']) report('TRACE', arg, arg2); }
-  debug(arg, arg2) { if (this.loglevel >= level['debug']) report('DEBUG', arg, arg2); }
-  info(arg, arg2) { if (this.loglevel >= level['info']) report('INFO', arg, arg2); }
-  warn(arg, arg2) { if (this.loglevel >= level['warn']) report('WARN', arg, arg2); }
-  error(arg, arg2) { if (this.loglevel >= level['error']) report('ERROR', arg, arg2); }
-  fatal(arg, arg2) { if (this.loglevel >= level['fatal']) report('FATAL', arg, arg2); }
+    }
+  });
 }
 
-module.exports = Logger;
+function debug(msg) { log(DEBUG, msg); }
+function info(msg) { log(INFO, msg); }
+function warn(msg) { log(WARN, msg); }
+function error(msg) { log(ERROR, msg); }
+function fatal(msg) { log(FATAL, msg); }
+
+module.exports = { OFF, DEBUG, INFO, WARN, ERROR, FATAL, init, log, debug, info, warn, error, fatal};
