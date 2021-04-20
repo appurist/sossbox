@@ -58,7 +58,7 @@ class Site {
 
     // check if static/public folder exists for this site
     if (await io.folderExists(this.sitePublic)) {
-      // console.log(`Found public folder for '${this.name}' ('${this.id}') port ${this.port} at ${this.prefix}: ${this.sitePublic}`);
+      // log.info(`Found public folder for '${this.name}' ('${this.id}') port ${this.port} at ${this.prefix}: ${this.sitePublic}`);
     } else {
       this.sitePublic = null;  // clear it so we know not to try to use data that doesn't exist
     }
@@ -66,7 +66,7 @@ class Site {
     // check if storage location exists
     if (this.siteData) {
       if (!await io.folderExists(this.siteData)) {
-        console.log(`Creating storage for '${this.name}' ('${this.id}') at ${this.siteData}`);
+        log.info(`Creating storage for '${this.name}' ('${this.id}') at ${this.siteData}`);
         await io.folderCreate(this.siteData);
       }
       if (await io.folderExists(this.siteData)) {
@@ -96,9 +96,9 @@ class Site {
 
   // this method checks if a folder for a give login ID already exists
   async loginExists(name) {
-    if (debug_level) console.log("loginExists:", name);
+    if (debug_level) log.info(`loginExists: ${name}`);
     if (!name) {
-      console.error('Error (loginExists): Invalid request,', name)
+      log.error(`Error (loginExists): Invalid request, ${name}`)
       return false;
     }
 
@@ -110,9 +110,9 @@ class Site {
   
   // this method uses a file system link to associate a login ID with a user UID (folder)
   async userLink(name, who) {
-    if (debug_level) console.log("userLink:", name, who);
+    if (debug_level) log.info(`userLink: ${name} ${who}`);
     if (!(name && who)) {
-      console.error('Error (userLink): Invalid request,', name, who)
+      log.error(`Error (userLink): Invalid request, ${name} ${who}`);
       return false;
     }
 
@@ -123,9 +123,9 @@ class Site {
   }
   // Needed for user delete and user login ID changes. Not to be confused with a user delete.
   async userUnlink(name) {
-    if (debug_level) console.log("userUnlink:", name);
+    if (debug_level) log.info(`userUnlink: ${name}`);
     if (!name) {  // check if user trying to go outside their own subfolder
-      console.error('Error (userUnlink): Invalid request.')
+      log.error('Error (userUnlink): Invalid request.')
       return false;
     }
 

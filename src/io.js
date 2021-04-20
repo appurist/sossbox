@@ -1,5 +1,6 @@
 const path = require('path');
 const fsPromises = require("fs/promises");
+const log = require('./log');
 
 let debug_level = 0;
 
@@ -33,24 +34,24 @@ async function fileExists(folder, fn) {
 
 /////////////////// Folder operations ///////////////////////
 async function folderCreate(folder) {
-  if (debug_level) console.log("mkdir:", folder);
+  if (debug_level) log.info(`mkdir: ${folder}`);
   if (!folder) {  // check if user trying to go outside their own subfolder
-    console.error('Error (mkdir): Invalid folder create.')
+    log.error('Error (mkdir): Invalid folder create.')
     return false;
   }
 
   let pn = path.resolve(folder);
   let result = await fsPromises.mkdir(pn, { recursive: true, mode: 0o770});
   if (result) {
-    console.log("Created folder:", result);
+    log.info(`Created folder: ${result}`);
   }
   return result;
 }
 
 async function folderDelete(folder) {
-  if (debug_level) console.log("rmdir:", folder);
+  if (debug_level) log.info(`rmdir: ${folder}`);
   if (!folder) {  // check if user trying to go outside their own subfolder
-    console.error('Error (rmdir): Invalid folder delete.')
+    log.error('Error (rmdir): Invalid folder delete.')
     return false;
   }
 
@@ -59,9 +60,9 @@ async function folderDelete(folder) {
 }
 
 async function folderGet(folder) {
-  if (debug_level) console.log("readdir:", folder);
+  if (debug_level) log.info(`readdir: ${folder}`);
   if (!folder) {  // check if user trying to go outside their own subfolder
-    console.error('Error (readdir): Invalid folder read.')
+    log.error('Error (readdir): Invalid folder read.')
     return false;
   }
 
@@ -71,9 +72,9 @@ async function folderGet(folder) {
 }
 
 async function fileGet(folder, fn) {
-  if (debug_level) console.log("readFile:", folder, fn);
+  if (debug_level) log.info(`readFile: ${folder} ${fn}`);
   if (!fn) {
-    console.error('Error (writeFile): Invalid read.')
+    log.error('Error (writeFile): Invalid read.')
     return false;
   }
   let pn = folder ? path.resolve(folder, fn) : path.resolve(fn);
@@ -83,9 +84,9 @@ async function fileGet(folder, fn) {
 
 // file
 async function filePut(folder, fn, payload) {
-  if (debug_level) console.log("writeFile:", folder, fn);
+  if (debug_level) log.info(`writeFile: ${folder} ${fn}`);
   if (!fn) {
-    console.error('Error (writeFile): Invalid write.')
+    log.error('Error (writeFile): Invalid write.')
     return false;
   }
 
@@ -110,9 +111,9 @@ async function filePut(folder, fn, payload) {
 }
 
 async function fileDelete(folder, fn) {
-  if (debug_level) console.log("unlink:", folder, fn);
+  if (debug_level) log.info(`unlink: ${folder} ${fn}`);
   if (!(folder && fn)) {  // check if user trying to go outside their own subfolder
-    console.error('Error (unlink): Invalid delete.')
+    log.error('Error (unlink): Invalid delete.')
     return false;
   }
 
@@ -156,16 +157,16 @@ async function jsonGet(pn, fn) {
     if (err.code === 'ENOENT') {
       return null;
     }
-    console.error(`${fn}: ${err.message} for ${pn}`);
+    log.error(`${fn}: ${err.message} for ${pn}`);
     process.exit(1);
   }
 
   try {
     let json = jsonLines.join('');
-    cfg = JSON.parse(json);
+    let cfg = JSON.parse(json);
     return cfg;
   } catch (err) {
-    console.error(`${fn}: ${err.message} for ${pn}`);
+    log.error(`${fn}: ${err.message} for ${pn}`);
     process.exit(2);
   }
   return null;
@@ -173,22 +174,22 @@ async function jsonGet(pn, fn) {
 
 // this method uses a file system link to associate an existing src folder/file with a new dest folder/file.
 async function symLink(src, dest) {
-  if (debug_level) console.log("symLink:", src, dest);
+  if (debug_level) log.info(`symLink: ${src} ${dest}`);
   if (!(src && dest)) {  // check if user trying to go outside their own subfolder
-    console.error('Error (symLink): Invalid request.')
+    log.error('Error (symLink): Invalid request.')
     return false;
   }
 
   let existingPath = path.resolve(src)
   let newPath = path.resolve(dest);
-  console.log(`*** symlink: "${existingPath}" as "${newPath}`)
+  log.info(`*** symlink: "${existingPath}" as "${newPath}`)
   return await fsPromises.symlink(existingPath, newPath, 'junction');
 }
 // Needed for user delete and user login ID changes. Not to be confused with a user delete.
 async function symUnlink(name) {
-  if (debug_level) console.log("symUnlink:", name);
+  if (debug_level) log.info(`symUnlink: ${name}`);
   if (!name) {
-    console.error('Error (symUnlink): Invalid request.')
+    log.error('Error (symUnlink): Invalid request.')
     return false;
   }
 
