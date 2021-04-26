@@ -119,17 +119,22 @@ function initRoutes(site) {
     }
   })
   listener.get(prefix+'/status', async (request, reply) => {
+    let response = {
+      version: packageVersion,
+      id: site.id,
+      name: site.name,
+      domain: site.domain,
+      registration: site.registration,
+      motd: ''
+    };
     try {
+      if (!request.headers)
+        return false;
+      if (!request.headers.authorization))
+        return false;
+
       getAuth(request); // ignore the optional result, we're just updating the request for logging
 
-      let response = {
-        version: packageVersion,
-        id: site.id,
-        name: site.name,
-        domain: site.domain,
-        registration: site.registration,
-        motd: ''
-      };
       if (site.siteData) {
         response.motd = await site.fileGet(site.siteData, 'motd.md');
       }
