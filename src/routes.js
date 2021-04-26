@@ -84,6 +84,8 @@ function initRoutes(site) {
   
   function getAuth(request) {
     request.token = null;
+    if (!request.headers)
+      return false;
     if (!request.headers.hasOwnProperty('authorization'))
       return false;
   
@@ -117,17 +119,17 @@ function initRoutes(site) {
     }
   })
   listener.get(prefix+'/status', async (request, reply) => {
-    getAuth(request); // ignore the optional result, we're just updating the request for logging
-
-    let response = {
-      version: packageVersion,
-      id: site.id,
-      name: site.name,
-      domain: site.domain,
-      registration: site.registration,
-      motd: ''
-    };
     try {
+      getAuth(request); // ignore the optional result, we're just updating the request for logging
+
+      let response = {
+        version: packageVersion,
+        id: site.id,
+        name: site.name,
+        domain: site.domain,
+        registration: site.registration,
+        motd: ''
+      };
       if (site.siteData) {
         response.motd = await site.fileGet(site.siteData, 'motd.md');
       }
