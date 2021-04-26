@@ -135,7 +135,7 @@ function initRoutes(site) {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     } catch (err) {
       if (err.code !== 'ENOENT') {
-        log.error("MOTD:", site.id, err);
+        log.error(`/status: ${err.message}\n${err.stack}`);
       }
       // otherwise reply without the motd
       logRoute(request);
