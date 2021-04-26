@@ -88,7 +88,7 @@ function initRoutes(site) {
       return false;
     if (!request.headers.authorization)
       return false;
- 
+
     let words = request.headers.authorization.split(' ');
     if (words[0] !== 'Bearer') {
       return false;
@@ -128,11 +128,6 @@ function initRoutes(site) {
       motd: ''
     };
     try {
-      if (!request.headers)
-        return false;
-      if (!request.headers.authorization))
-        return false;
-
       getAuth(request); // ignore the optional result, we're just updating the request for logging
 
       if (site.siteData) {
