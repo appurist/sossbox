@@ -86,9 +86,9 @@ function initRoutes(site) {
     request.token = null;
     if (!request.headers)
       return false;
-    if (!request.headers.hasOwnProperty('authorization'))
+    if (!request.headers.authorization)
       return false;
-  
+ 
     let words = request.headers.authorization.split(' ');
     if (words[0] !== 'Bearer') {
       return false;
