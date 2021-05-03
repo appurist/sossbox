@@ -30,7 +30,8 @@ function handleShutdown(rc) {
     log.info(`Closing main listener...`);
     listener.close();
   }
-  process.exit(rc);
+  log.info(`Process exit: ${rc}`);
+  setTimeout(()=>process.exit(rc), 250);
 }
 
 // unconditionally delete any existing pid file on startup, to ensure it's always the latest run.
