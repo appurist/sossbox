@@ -153,15 +153,15 @@ function initRoutes(site) {
       if (message.startsWith('user,')) {
         log.info("socket message: user,***");
       } else {
-        log.info("socket message:", message);
+        log.info("socket message: "+JSON.stringify(message));
       }
       connection.socket.send('{ "message": "none"}');
     })
     connection.socket.on('open', (connection, ev) => {
-      log.info("socket connected:", connection, ev);
+      log.info("socket connected: "+JSON.stringify(connection)+' '+JSON.stringify(ev));
     })
     connection.socket.on('close', (code, reason) => {
-      log.info("socket disconnected:", code, reason);
+      log.info("socket disconnected: "+JSON.stringify(code)+' '+JSON.stringify(reason));
     })
   })  
 

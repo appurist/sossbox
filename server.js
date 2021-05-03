@@ -80,7 +80,7 @@ async function getListenerOptions(id, sslPath) {
 }
 
 function onError(err) {
-  log.error("Server error:", err.message);
+  log.error(`Server error: ${err.message}`);
   if (err.code === 'EADDRINUSE') {
     log.info(" To continue: Restart this server after changing the indicated port number, or stopping the conflicting service.");
   }
@@ -114,7 +114,7 @@ let rootFolder = process.cwd();
 async function serverInit() {
   site = new Site(rootFolder);
   if (!site) {
-    log.error("Environment configuration error: ", site);
+    log.error(`Environment configuration error: ${site}`);
     return null;
   }
   await site.initSite(SERVER_CFG);
@@ -122,7 +122,7 @@ async function serverInit() {
   if (site.hasOwnProperty("cors")) {
     corsOptions = mainsite.cors;  // usually  { origin: true }
   }
-  log.info("CORS support:", corsOptions)
+  log.info(`CORS support: ${corsOptions}`);
 
   let sslPath = path.join(site.siteBase, 'ssl');
   site.options = await getListenerOptions(site.id, sslPath);
