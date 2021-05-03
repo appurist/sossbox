@@ -149,6 +149,11 @@ async function serverInit() {
     routes.initRoutes(site);
   }
 
+  let port = site.port || (site.options.https ? 443 : 80);
+  let host = site.host || '0.0.0.0'; // all NICs
+  let id = site.id || 'sossbox';
+  let name = site.domain || id;
+
   if (site.sitePublic) {
     log.info(`${site.id}: Serving static files on port ${site.port} at '${site.prefix}' from ${site.sitePublic}`);
     let staticOptions = {
@@ -161,15 +166,17 @@ async function serverInit() {
       staticOptions.prefix = site.prefix;
     }
     site.listener.register(fastifyStatic, staticOptions);
-  };
 
-  let port = site.port || (site.options.https ? 443 : 80);
-  let host = site.host || '0.0.0.0'; // all NICs
-  let id = site.id || 'sossbox';
-  let name = site.domain || id;
-  site.listener.get('/', (request, reply) => {
-    reply.send('You have reached the API server for '+name)
-  });
+    // this will work with fastify-static and send /index.html
+    site.listener.setNotFoundHandler((_, reply) => {
+      reply.sendFile('index.html');
+      //reply.redirect('/index.html');
+    })
+  } else {
+    site.listener.get('/', (_, reply) => {
+      reply.send('You have reached the API server for '+name)
+    });
+  }
 
   // Actually start listening on the port now.
   try {
