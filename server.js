@@ -30,7 +30,10 @@ function handleShutdown(rc) {
     log.info(`Closing main listener...`);
     listener.close();
   }
-  log.info(`Process exit: ${rc}`);
+  if (rc !== 0)
+    log.error(`Process exit: ${rc}`);
+  else
+    log.force(`Process exit: ${rc}`);
   setTimeout(()=>process.exit(rc), 250);
 }
 
