@@ -173,10 +173,10 @@ function initRoutes(site) {
     }
     site.folderGet('users').then((response) => {
       if (response) {
-        request.log.warning('/users request');
+        request.log.warn('/users request');
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
       } else {
-        request.log.warning('/users request, none found.');
+        request.log.warn('/users request, none found.');
         reply.code(404).send('users folder not found')
       }
     }).catch((err) => { 
