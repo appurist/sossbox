@@ -107,6 +107,12 @@ function initRoutes(site) {
     let user = getAuth(request);
     return user && user.administrator;
   }
+
+  function makeUserResponse(user) {
+    let response = Object.assign({ }, user)    
+    response.administrator = (response.login === site.admin) || (response.uid === site.admin);
+    return response;
+  }
     
   // Declare a route
   let prefix = (site.prefix === '/') ? '' : site.prefix;  // store '/' as an empty string for concatenation
@@ -192,9 +198,10 @@ function initRoutes(site) {
       reply.code(401).send('Not authorized.');
       return;
     }
-    let meta = await site.userByUID(user.uid, "meta");
+    let userRec = await site.userByUID(user.uid, "meta");
     request.log.info({req: request}, 'route handler');
-    reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
+    let response = makeUserResponse(userRec.user);
+    reply.type(JSON_TYPE).send(JSON.stringify(response));    
   })
 
   // Same as /users/:myID but with an implicit ID
@@ -241,8 +248,9 @@ function initRoutes(site) {
       logRoute(request);
       return;
     }
-    site.userByLogin(login).then((response) => {
-      reply.type(JSON_TYPE).send(JSON.stringify(response.user));    
+    site.userByLogin(login).then((userRec) => {
+      let response = makeUserResponse(userRec.user);
+      reply.type(JSON_TYPE).send(JSON.stringify(response));    
       logRoute(request);
     }).catch((err) => { 
       handleError(err, request, reply);
@@ -276,7 +284,7 @@ function initRoutes(site) {
         site.userCreate(credentials, user)
         .then(data => {
           let userRec = data.user;
-          let response = Object.assign({ }, userRec)
+          let response = makeUserResponse(userRec.user);
           response.token = jwt.sign(userRec, site.secret, { issuer: site.id})
           // The token does not include more than basic user.
           // e.g. The token does not include itself, or the MOTD message.
@@ -291,7 +299,7 @@ function initRoutes(site) {
             reply.type(JSON_TYPE).send(JSON.stringify(response));    
           });
         }).catch((err) => {
-          request.log.error('User registration: create failed.');
+          request.log.error(`User registration failed: ${err.message}`);
           reply.code(401).send('Registration failed.');
         });
       }
@@ -338,8 +346,7 @@ function initRoutes(site) {
         reply.code(401).send('Authentication failed, invalid password.');
         return;
       }
-      let response = Object.assign({ }, userRec.user)
-      response.administrator = (response.login === site.admin) || (response.uid === site.admin);
+      let response = makeUserResponse(userRec.user);
       response.token = jwt.sign(response, site.secret, { issuer: site.id})
       // The token does not include more than basic user.
       // e.g. The token does not include itself, or the MOTD message.
