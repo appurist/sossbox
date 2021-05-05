@@ -113,7 +113,7 @@ function initRoutes(site) {
   // log.info(`${site.id}: Enabling storage API ...`)
   listener.get(prefix+'/ping', async (request, reply) => {
     try {
-      reply.type(JSON_TYPE).send(JSON.stringify({sossbox: site.id}));    
+      reply.type(JSON_TYPE).send(JSON.stringify({name: site.id, version: packageVersion}));    
     } catch (err) {
       handleError(err, request, reply);
     }
