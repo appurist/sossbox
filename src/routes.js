@@ -339,7 +339,8 @@ function initRoutes(site) {
         return;
       }
       let response = Object.assign({ }, userRec.user)
-      response.token = jwt.sign(userRec.user, site.secret, { issuer: site.id})
+      response.administrator = (response.login === site.admin) || (response.uid === site.admin);
+      response.token = jwt.sign(response, site.secret, { issuer: site.id})
       // The token does not include more than basic user.
       // e.g. The token does not include itself, or the MOTD message.
       site.fileGet('.', 'motd.md').then(motd => {
