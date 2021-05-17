@@ -148,7 +148,7 @@ function initRoutes(site) {
   listener.get(prefix+'/profile', async (request, reply) => {
     let user = auth.getAuth(request, site.secret);
     if (!user) {
-      request.log.warning({req: request}, '/profile request, not authorized.');
+      request.log.warn({req: request}, '/profile request, not authorized.');
       reply.code(401).send('Not authorized.');
       return;
     }
