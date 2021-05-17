@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 const fastifyWebsocket = require('fastify-websocket');
 
+const auth = require('./auth');
 const log = require('./log');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
@@ -61,53 +62,6 @@ function initRoutes(site) {
 
   listener.register(fastifyWebsocket);
 
-  // some nested functions so we have siteCfg and mySite
-  function verifyToken(token) {
-    if (!token) {
-      log.warn("Missing token.");
-      return null;
-    }
-    let result = jwt.verify(token, site.secret, function(err, decoded) {
-      if (err) {
-        log.warn("Error verifying JWT token value:", err.message);
-        return null;
-      }
-  
-      // log.info("Storing user for token:", decoded);
-      let user = decoded;
-      user.token = token;
-      user.authenticated = true;
-      return user;
-    });
-    return result;
-  }
-  
-  function getAuth(request) {
-    request.token = null;
-    if (!request.headers)
-      return false;
-    if (!request.headers.authorization)
-      return false;
-
-    let words = request.headers.authorization.split(' ');
-    if (words[0] !== 'Bearer') {
-      return false;
-    }
-    let token = verifyToken(words[1]);
-    if (!token) {
-      return false;
-    }
-
-    // Update the request for user context.
-    request.token = token;
-    return token;
-  }
-  
-  function isAdmin(request) {
-    let user = getAuth(request);
-    return user && user.administrator;
-  }
-
   function makeUserResponse(user) {
     let response = Object.assign({ }, user)    
     response.administrator = (response.login === site.admin) || (response.uid === site.admin);
@@ -134,7 +88,7 @@ function initRoutes(site) {
       motd: ''
     };
     try {
-      getAuth(request); // ignore the optional result, we're just updating the request for logging
+      auth.getAuth(request, site.secret); // ignore the optional result, we're just updating the request for logging
 
       if (site.siteData) {
         response.motd = await site.fileGet(site.siteData, 'motd.md');
@@ -172,7 +126,7 @@ function initRoutes(site) {
   })  
 
   listener.get(prefix+'/users', (request, reply) => {
-    if (!isAdmin(request)) {
+    if (!auth.isAdmin(request)) {
       logRoute(request);
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
@@ -192,7 +146,7 @@ function initRoutes(site) {
 
   // Same as /users/:myID but with an implicit ID
   listener.get(prefix+'/profile', async (request, reply) => {
-    let user = getAuth(request);
+    let user = auth.getAuth(request, site.secret);
     if (!user) {
       request.log.warning({req: request}, '/profile request, not authorized.');
       reply.code(401).send('Not authorized.');
@@ -206,7 +160,7 @@ function initRoutes(site) {
 
   // Same as /users/:myID but with an implicit ID
   listener.put(prefix+'/profile', async (request, reply) => {
-    let user = getAuth(request);
+    let user = auth.getAuth(request, site.secret);
     if (!user) {
       request.log.warn('/profile request, not authorized');
       reply.code(401).send('Not authorized.');
@@ -236,14 +190,14 @@ function initRoutes(site) {
   })
 
   listener.get(prefix+'/users/:loginName', (request, reply) => {
-    let user = getAuth(request);
+    let user = auth.getAuth(request, site.secret);
     if (!user) {
       reply.code(401).send('Not authorized.');
       logRoute(request);
       return;
     }
     let login = request.params.loginName;
-    if ((login !== user.login) && !isAdmin(request)) {
+    if ((login !== user.login) && !auth.isAdmin(request)) {
       reply.code(403).send('Forbidden: user is not authorized.');
       logRoute(request);
       return;
@@ -310,14 +264,14 @@ function initRoutes(site) {
   })
 
   listener.delete(prefix+'/users/:uid', (request, reply) => {
-    let user = getAuth(request);
+    let user = auth.getAuth(request, site.secret);
     if (!user) {
       request.log.warn('User delete, not authorized.');
       reply.code(401).send('Not authorized.');
       return;
     }
     let uid = request.params.uid;
-    if ((uid !== user.uid) && !isAdmin(request)) {
+    if ((uid !== user.uid) && !auth.isAdmin(request)) {
       request.log.warn('User delete, user not authorized.');
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
@@ -362,7 +316,7 @@ function initRoutes(site) {
   });
 
   listener.post(prefix+'/logout', (request, reply) => {
-    let user = getAuth(request);
+    let user = auth.getAuth(request, site.secret);
     if (!user) {
       request.log.warn("Authorization error during logout.");
       reply.code(401).send('Not authorized.');
@@ -375,7 +329,7 @@ function initRoutes(site) {
   });
 
   listener.get(prefix+'/projects', async (request, reply) => {
-    let user = getAuth(request);
+    let user = auth.getAuth(request, site.secret);
     if (!user) {
       request.log.warn("Projects list: Not authorized.");
       reply.code(401).send('Not authorized.');
@@ -393,7 +347,7 @@ function initRoutes(site) {
   })
 
   listener.get(prefix+'/projects/:id', async (request, reply) => {
-    let user = await getAuth(request);
+    let user = auth.getAuth(request, site.secret);
     if (!user) {
       request.log.warn("Project info: Not authorized.");
       reply.code(401).send('Not authorized.');
@@ -409,7 +363,7 @@ function initRoutes(site) {
   })
 
   listener.post(prefix+'/projects', async (request, reply) => {
-    let user = await getAuth(request);
+    let user = auth.getAuth(request, site.secret);
     if (!user) {
       request.log.warn("Project POST: not authorized.");
       reply.code(401).send('Not authorized.');
@@ -430,7 +384,7 @@ function initRoutes(site) {
   })
 
   listener.delete(prefix+'/projects/:uid', async (request, reply) => {
-    let user = await getAuth(request);
+    let user = auth.getAuth(request, site.secret);
     if (!user) {
       request.log.warn("Project delete: not authorized.");
       reply.code(401).send('Not authorized.');
