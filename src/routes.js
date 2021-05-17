@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 const fastifyWebsocket = require('fastify-websocket');
 
+const assets = require('./assets');
 const auth = require('./auth');
 const log = require('./log');
 
@@ -400,6 +401,8 @@ function initRoutes(site) {
       handleError(err, request, reply);
     });
   });
+
+  assets.initRoutes(site);
 }
 
 module.exports = { initRoutes };
