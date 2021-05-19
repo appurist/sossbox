@@ -10,7 +10,9 @@
     "build": "pkg server.js -t latest -o sossbox",
     "build:win": "pkg -t latest-win-x64 server.js -o sossbox.exe",
     "build:linux": "pkg -t latest-linux-x64 server.js -o sossbox",
-    "build:mac": "pkg -t latest-macos-x64 server.js -o sossbox-macos"
+    "build:mac": "pkg -t latest-macos-x64 server.js -o sossbox-macos",
+    "test": "jest",
+    "test:watch": "yarn test -- --watch"
   },
   "engines": {
     "node": ">= 12.x"
@@ -47,6 +49,7 @@
     "ws": "^7.3.1"
   },
   "devDependencies": {
+    "jest": "^26.6.3",
     "pino-pretty": "^4.3.0",
     "pkg": "^4.4.9"
   }
