@@ -1,5 +1,6 @@
 const path = require('path');
-const fsPromises = require("fs/promises");
+//const fsPromises = require("fs/promises");  // requires Node 14.0.0 or later
+const fsPromises = require("fs").promises;
 const log = require('./log');
 
 let debug_level = 0;
