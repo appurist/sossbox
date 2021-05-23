@@ -8,14 +8,14 @@ const {SERVER_CFG, KEY_FILE, CRT_FILE} = require('./src/constants')
 
 const log = require('./src/log');
 const io = require('./src/io')
-const Site = require('./src/site')
+const Store = require('./src/store')
 const routes = require('./src/routes')
 
 // read .env and .env.defaults
 require('dotenv-defaults/config');
 
 let listener = undefined;
-let site = undefined;
+let store = undefined;
 
 let corsOptions = { origin: true };
 
@@ -116,68 +116,68 @@ let rootFolder = process.cwd();
 
 // Returns the fastify instance on success.
 async function serverInit() {
-  site = new Site(rootFolder);
-  if (!site) {
-    log.error(`Environment configuration error: ${site}`);
+  store = new Store(rootFolder);
+  if (!store) {
+    log.error(`Environment configuration error: ${store}`);
     return null;
   }
-  await site.initSite(SERVER_CFG);
+  await store.init(SERVER_CFG);
 
-  if (site.hasOwnProperty("cors")) {
-    corsOptions = mainsite.cors;  // usually  { origin: true }
+  if (store.hasOwnProperty("cors")) {
+    corsOptions = store.cors;  // usually  { origin: true }
   }
   log.info(`CORS support: ${corsOptions}`);
 
-  let sslPath = path.join(site.siteBase, 'ssl');
-  site.options = await getListenerOptions(site.id, sslPath);
-  let loglevel = site.loglevel;
+  let sslPath = path.join(store.base, 'ssl');
+  store.options = await getListenerOptions(store.id, sslPath);
+  let loglevel = store.loglevel;
   if ((loglevel === 'false') || (loglevel === '0')) { // it's strings in env/cfg
     loglevel = false;
   }
   if (loglevel === 'true') {
     loglevel = 'error'; // provide a default level
   }
-  let logfile = site.logfile || `sossbox.log`
+  let logfile = store.logfile || `sossbox.log`
   log.init(loglevel, logfile);
 
-  site.options.logger = log;
-  log.info(`Logging level '${loglevel}' for site '${site.id}' in ${logfile}`);
+  store.options.logger = log;
+  log.info(`Logging level '${loglevel}' for store '${store.id}' in ${logfile}`);
 
-  // Save the fastify site listener for easy access.
-  site.listener = fastify(site.options);
-  site.listener.register(fastifyCORS, corsOptions);
-  listener = site.listener;
+  // Save the fastify listener for easy access.
+  store.listener = fastify(store.options);
+  store.listener.register(fastifyCORS, corsOptions);
+  listener = store.listener;
 
   // Initialize the SOSSBox server REST API endpoints.
-  if (site.storage) {
-    routes.initRoutes(site);
+  if (store.storage) {
+    routes.initRoutes(store);
   }
 
-  let port = site.port || (site.options.https ? 443 : 80);
-  let host = site.host || '0.0.0.0'; // all NICs
-  let id = site.id || 'sossbox';
-  let name = site.domain || id;
+  let port = store.port || (store.options.https ? 443 : 80);
+  let host = store.host || '0.0.0.0'; // all NICs
+  let id = store.id || 'sossbox';
+  let name = store.domain || id;
 
-  if (site.sitePublic) {
-    log.info(`${site.id}: Serving static files on port ${site.port} at '${site.prefix}' from ${site.sitePublic}`);
+  if (store.public) {
+    log.info(`${store.id}: Serving static files on port ${store.port} at '${store.api}' from ${store.public}`);
     let staticOptions = {
       // list: true,
-      root: site.sitePublic
+      root: store.public
     }
-    if (site.prefix && site.prefix !== '/') {
-      // redirect /prefix to /prefix/ to allow file peers to work
+    if (store.api && store.api !== '/') {
+      // redirect /api to /api/ to allow file peers to work
       staticOptions.redirect = true;
-      staticOptions.prefix = site.prefix;
+      staticOptions.prefix = store.api;
     }
-    site.listener.register(fastifyStatic, staticOptions);
+    store.listener.register(fastifyStatic, staticOptions);
 
     // this will work with fastify-static and send /index.html
-    site.listener.setNotFoundHandler((_, reply) => {
+    store.listener.setNotFoundHandler((_, reply) => {
       reply.sendFile('index.html');
       //reply.redirect('/index.html');
     })
   } else {
-    site.listener.get('/', (_, reply) => {
+    store.listener.get('/', (_, reply) => {
       reply.send('You have reached the API server for '+name)
     });
   }
