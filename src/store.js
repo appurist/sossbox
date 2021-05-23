@@ -1,97 +1,81 @@
+const { envGet } = require('./env');
+
 const path = require('path');
 const io = require('./io');
 const log = require('./log');
 
-const {USERMETA, PUBLIC_FOLDER, DATA_FOLDER} = require('./constants')
+const {SERVER_CFG, USERMETA, PUBLIC_FOLDER, DATA_FOLDER} = require('./constants')
 
 let debug_level = 0;
 
-function envGet(envKey, envDefault, envPrefix) {
-  let prefix = envPrefix || 'SOSSBOX_';
-  let sosskey = prefix + envKey;
-  let result = process.env.hasOwnProperty(sosskey) ? process.env[sosskey] : envDefault;
-  // Allow PORT override in order to support Heroku and similar environments.
-  if ((envKey === 'PORT') && (process.env.hasOwnProperty(envKey))) {
-    result = process.env[envKey];
-  }
-
-  if (result === '0') return 0;
-  if (result === 'true') return true;
-  if (result === 'false') return false;
-
-  let resultInt = parseInt(result);
-  return resultInt ? resultInt : result;
-}
-
-class Site {
-  constructor(siteBase) {
-    // site defaults here
-    this.siteBase = siteBase;
+class Store {
+  constructor(base) {
+    this.base = base;
 
     this.host = envGet('HOST', '0.0.0.0');
     this.port = envGet('PORT', 0);
-    this.prefix = envGet('PREFIX', '/');
+    this.api = envGet('API', '/');
     this.public = envGet('PUBLIC', PUBLIC_FOLDER);
     this.data = envGet('DATA', DATA_FOLDER);
     this.storage = envGet('STORAGE', true);
     this.registration = envGet('REGISTRATION', true);
     this.secret = envGet('SECRET', 'secret');
     this.admin = envGet('ADMIN', 'admin');
-    this.loglevel = envGet('LOGLEVEL', 'error');
+    this.loglevel = envGet('LOGLEVEL', 'warn');
     this.logfile = envGet('LOGFILE', 'sossbox.log');
-
-    // the main site has a default identity
-    this.id = envGet('ID', 'main');
+    // the default identity
+    this.id = envGet('ID', 'sossbox');
     this.name = envGet('NAME', 'SOSSBox');
   }
 
-  // pass in the per-site config including the relative/absolute data folder.
-  async initSite(cfgName) {
-    let configOverrides = await io.jsonGet(this.siteBase, cfgName) || {};
+  // Separate init function from constructor to separate async calls.
+  async init() {
+    let configOverrides = await io.jsonGet(this.base, SERVER_CFG) || {};
+
     // add overrides to defaults from config
     for (let k in configOverrides) {
-      this[k] = configOverrides[k];
+      let key = k.toLowerCase();
+      this[key] = configOverrides[key];
     }
 
-    // now determine where the per-site data actually is
-    this.siteData = this.storage ? path.resolve(this.siteBase, this.data) : null;
-    this.sitePublic = path.resolve(this.siteBase, this.public);
+    // now determine where the config data actually is
+    this.data = this.storage ? path.resolve(this.base, this.data) : null;
+    this.public = path.resolve(this.base, this.public);
 
-    // check if static/public folder exists for this site
-    if (await io.folderExists(this.sitePublic)) {
-      // log.info(`Found public folder for '${this.name}' ('${this.id}') port ${this.port} at ${this.prefix}: ${this.sitePublic}`);
+    // check if static/public folder exists
+    if (await io.folderExists(this.public)) {
+      // log.info(`Found public folder for '${this.name}' ('${this.id}') port ${this.port} at ${this.api}: ${this.public}`);
     } else {
-      this.sitePublic = null;  // clear it so we know not to try to use data that doesn't exist
+      this.public = null;  // clear it so we know not to try to use data that doesn't exist
     }
 
     // check if storage location exists
-    if (this.siteData) {
-      if (!await io.folderExists(this.siteData)) {
-        log.info(`Creating storage for '${this.name}' ('${this.id}') at ${this.siteData}`);
-        await io.folderCreate(this.siteData);
+    if (this.data) {
+      if (!await io.folderExists(this.data)) {
+        log.info(`Creating storage for '${this.name}' ('${this.id}') at ${this.data}`);
+        await io.folderCreate(this.data);
       }
-      if (await io.folderExists(this.siteData)) {
-        // Now make sure the initial folder structure is in place.
-        // Create initial site subfolders if necessary.
-        await io.folderCreate(path.join(this.siteData, 'users'));
-        await io.folderCreate(path.join(this.siteData, 'logins'));
-        log.force(`Storage ready for '${this.name}' ('${this.id}'): ${this.siteData}`);
+      if (await io.folderExists(this.data)) {
+        // Now make sure the initial folder structure is in place, create initial subfolders if necessary.
+        await io.folderCreate(path.join(this.data, 'users'));
+        await io.folderCreate(path.join(this.data, 'logins'));
+        log.force(`Storage ready for '${this.name}' ('${this.id}'): ${this.data}`);
       } else {
-        this.siteData = null; // clear it so we know not to try to use data that doesn't exist
+        this.data = null; // clear it so we know not to try to use data that doesn't exist
       }
     }
   }
 
   async fileGet(folder, fn) {
-    let pn = path.resolve(this.siteData, folder);
+    let pn = path.resolve(this.data, folder);
     return await io.fileGet(pn, fn);
   }
   async docGet(folder, fn) {
-    let pn = path.resolve(this.siteData, folder);
+    let pn = path.resolve(this.data, folder);
     return await io.jsonGet(pn, fn);
   }
   async folderGet(folder) {
-    let pn = path.resolve(this.siteData, folder);
+    let pn = path.resolve(this.data, folder);
     return await io.folderGet(pn);
   }
 
@@ -103,9 +87,9 @@ class Site {
       return false;
     }
 
-    let newPath = path.join(this.siteData, 'logins', name);
+    let newPath = path.join(this.data, 'logins', name);
     let folder = await io.folderExists(newPath);
-    let file = await io.fileExists(this.siteData, 'logins');
+    let file = await io.fileExists(this.data, 'logins');
     return folder || file;
   }
   
@@ -117,8 +101,8 @@ class Site {
       return false;
     }
 
-    let existingPath = path.join(this.siteData, 'users', who);
-    let newPath = path.join(this.siteData, 'logins', name);
+    let existingPath = path.join(this.data, 'users', who);
+    let newPath = path.join(this.data, 'logins', name);
 
     return await io.symLink(existingPath, newPath, 'junction');
   }
@@ -130,7 +114,7 @@ class Site {
       return false;
     }
 
-    let pn = path.join(this.siteData, 'logins', name);
+    let pn = path.join(this.data, 'logins', name);
     return await io.symUnlink(pn);
   }
 
@@ -138,7 +122,7 @@ class Site {
   // For the rest of this file, who refers to the UID of a user, where refers to a (sub)collection name, which refers to a specific document.
 
   userFolder(who, where) {
-    let pn = path.join(this.siteData, 'users', who);
+    let pn = path.join(this.data, 'users', who);
     return where ? path.join(pn, where) : pn;
   }
 
@@ -213,16 +197,14 @@ class Site {
   // like createDoc, but creates a document with credentials that can be checked by serverClient.login()
   async userDelete(uid) {
     let user = await this.userByUID(uid);
-    if (user) {
-      let result1 = await this.userUnlink(user.login);
-      let result2 = await this.userDeleteSubfolders(user.uid);
+    if (!user) return false;
+    let result1 = await this.userUnlink(user.login);
+    let result2 = await this.userDeleteSubfolders(user.uid);
 
-      // TODO: Force-logout all?
+    // TODO: Force-logout all
 
-      // now, in the top-level server database, create a user record
-      let result3 = await io.folderDelete(this.userFolder(who));
-    }
-
+    // now, delete the user at the top-level
+    let result3 = await io.folderDelete(this.userFolder(who));
     return result1 && result2 && result3;
   }
 
@@ -245,9 +227,9 @@ class Site {
     return await io.jsonGet(this.userFolder(who), USERMETA) || null;
   }
   async userByLogin(name) {
-    let pn = path.join(this.siteData, 'logins', name);
+    let pn = path.join(this.data, 'logins', name);
     return await io.jsonGet(pn, USERMETA) || null;
   }
 }
 
-module.exports = Site;
+module.exports = Store;

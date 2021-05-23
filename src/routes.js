@@ -57,24 +57,24 @@ let packageVersion = require('../package.json').version;
 log.force('SOSSBox '+packageVersion);
 // log.info('Node.js '+process.version);
 
-// This initializes the SOSS routes, and optionally user registration if siteCfg.registration is set.
-function initRoutes(site) {
-  let listener = site.listener;
+// This initializes the SOSS routes, and optionally user registration if store.registration is set.
+function initRoutes(store) {
+  let listener = store.listener;
 
   listener.register(fastifyWebsocket);
 
   function makeUserResponse(user) {
     let response = Object.assign({ }, user)    
-    response.administrator = (response.login === site.admin) || (response.uid === site.admin);
+    response.administrator = (response.login === store.admin) || (response.uid === store.admin);
     return response;
   }
     
   // Declare a route
-  let prefix = (site.prefix === '/') ? '' : site.prefix;  // store '/' as an empty string for concatenation
-  // log.info(`${site.id}: Enabling storage API ...`)
+  let prefix = (store.api === '/') ? '' : store.api;  // store '/' as an empty string for concatenation
+  // log.info(`${store.id}: Enabling storage API ...`)
   listener.get(prefix+'/ping', async (request, reply) => {
     try {
-      reply.type(JSON_TYPE).send(JSON.stringify({name: site.id, version: packageVersion}));    
+      reply.type(JSON_TYPE).send(JSON.stringify({name: store.id, version: packageVersion}));    
     } catch (err) {
       handleError(err, request, reply);
     }
@@ -82,17 +82,17 @@ function initRoutes(site) {
   listener.get(prefix+'/status', async (request, reply) => {
     let response = {
       version: packageVersion,
-      id: site.id,
-      name: site.name,
-      domain: site.domain,
-      registration: site.registration,
+      id: store.id,
+      name: store.name,
+      domain: store.domain,
+      registration: store.registration,
       motd: ''
     };
     try {
-      auth.getAuth(request, site.secret); // ignore the optional result, we're just updating the request for logging
+      auth.getAuth(request, store.secret); // ignore the optional result, we're just updating the request for logging
 
-      if (site.siteData) {
-        response.motd = await site.fileGet(site.siteData, 'motd.md');
+      if (store.data) {
+        response.motd = await store.fileGet(store.data, 'motd.md');
       }
       logRoute(request);
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
@@ -132,7 +132,7 @@ function initRoutes(site) {
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
     }
-    site.folderGet('users').then((response) => {
+    store.folderGet('users').then((response) => {
       if (response) {
         request.log.warn('/users request');
         reply.type(JSON_TYPE).send(JSON.stringify(response));    
@@ -147,13 +147,13 @@ function initRoutes(site) {
 
   // Same as /users/:myID but with an implicit ID
   listener.get(prefix+'/profile', async (request, reply) => {
-    let user = auth.getAuth(request, site.secret);
+    let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn({req: request}, '/profile request, not authorized.');
       reply.code(401).send('Not authorized.');
       return;
     }
-    let userRec = await site.userByUID(user.uid, "meta");
+    let userRec = await store.userByUID(user.uid, "meta");
     request.log.info({req: request}, 'route handler');
     let response = makeUserResponse(userRec.user);
     reply.type(JSON_TYPE).send(JSON.stringify(response));    
@@ -161,14 +161,14 @@ function initRoutes(site) {
 
   // Same as /users/:myID but with an implicit ID
   listener.put(prefix+'/profile', async (request, reply) => {
-    let user = auth.getAuth(request, site.secret);
+    let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn('/profile request, not authorized');
       reply.code(401).send('Not authorized.');
       return;
     }
     // TODO: This needs to merge the payload with the current profile data.
-    let meta = site.userByUID(user.uid, "meta");
+    let meta = store.userByUID(user.uid, "meta");
     meta.user = Object.assign({}, meta.user, request.body);
     await userDocReplace(user, '', "meta", meta);
     request.log.info('/profile PUT');
@@ -178,7 +178,7 @@ function initRoutes(site) {
   // This is for a pre-check on the user registration form, to verify that the proposed login ID is available.
   listener.head(prefix+'/users/:loginName', (request, reply) => {
     let name = request.params.loginName;
-    site.loginExists(name).then((response) => {
+    store.loginExists(name).then((response) => {
       if (response) {
         reply.code(409).send(`That login ID ('${name}') is not available. Please choose another.`);
       } else {
@@ -191,7 +191,7 @@ function initRoutes(site) {
   })
 
   listener.get(prefix+'/users/:loginName', (request, reply) => {
-    let user = auth.getAuth(request, site.secret);
+    let user = auth.getAuth(request, store.secret);
     if (!user) {
       reply.code(401).send('Not authorized.');
       logRoute(request);
@@ -203,7 +203,7 @@ function initRoutes(site) {
       logRoute(request);
       return;
     }
-    site.userByLogin(login).then((userRec) => {
+    store.userByLogin(login).then((userRec) => {
       let response = makeUserResponse(userRec.user);
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
       logRoute(request);
@@ -214,8 +214,8 @@ function initRoutes(site) {
 
   // This is user add (a.k.a. signup or registration)
   listener.post(prefix+'/users', (request, reply) => {
-    if (!site.registration) {
-      if (!site.registration) {
+    if (!store.registration) {
+      if (!store.registration) {
         request.log.warn('User registration is disabled.');
         reply.code(405).send('New user registration is disabled.');
         return false;
@@ -228,7 +228,7 @@ function initRoutes(site) {
     delete user.password; // don't store the original password. especially not in plain text
 
     let name = user.login;
-    site.loginExists(name).then((response) => {
+    store.loginExists(name).then((response) => {
       if (response) {
         request.log.warn('User registration: duplicate user.');
         reply.code(409).send(`That login ID ('${name}') is not available. Please choose another.`);
@@ -236,14 +236,14 @@ function initRoutes(site) {
       } else {
         // Next, create user with key from tenant storage.
         // Returns the server key (.secret member is the storage token).
-        site.userCreate(credentials, user)
+        store.userCreate(credentials, user)
         .then(data => {
           let userRec = data.user;
           let response = makeUserResponse(userRec.user);
-          response.token = jwt.sign(userRec, site.secret, { issuer: site.id})
+          response.token = jwt.sign(userRec, store.secret, { issuer: store.id})
           // The token does not include more than basic user.
           // e.g. The token does not include itself, or the MOTD message.
-          site.fileGet('.', 'motd.md').then(motd => {
+          store.fileGet('.', 'motd.md').then(motd => {
             response.motd = motd;
             request.log.info('User registration: successful.');
             reply.type(JSON_TYPE).send(JSON.stringify(response));    
@@ -265,7 +265,7 @@ function initRoutes(site) {
   })
 
   listener.delete(prefix+'/users/:uid', (request, reply) => {
-    let user = auth.getAuth(request, site.secret);
+    let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn('User delete, not authorized.');
       reply.code(401).send('Not authorized.');
@@ -277,7 +277,7 @@ function initRoutes(site) {
       reply.code(403).send('Forbidden: user is not authorized.');
       return;
     }
-    site.userDelete(uid).then((response) => {
+    store.userDelete(uid).then((response) => {
       request.log.info('User delete complete.');
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
       return;
@@ -287,13 +287,13 @@ function initRoutes(site) {
   });
 
   listener.post(prefix+'/login', (request, reply) => {
-    if (!site.secret) {
+    if (!store.secret) {
       request.log.error('Login failed, secret is not set.');
-      log.error(`${site.id}: secret is not set.`);
+      log.error(`${store.id}: secret is not set.`);
       return false;
     }
 
-    site.userByLogin(request.body.login)
+    store.userByLogin(request.body.login)
     .then(userRec => {
       let testhash = md5(request.body.password);
       if (testhash !== userRec.credentials.hash) {
@@ -302,10 +302,10 @@ function initRoutes(site) {
         return;
       }
       let response = makeUserResponse(userRec.user);
-      response.token = jwt.sign(response, site.secret, { issuer: site.id})
+      response.token = jwt.sign(response, store.secret, { issuer: store.id})
       // The token does not include more than basic user.
       // e.g. The token does not include itself, or the MOTD message.
-      site.fileGet('.', 'motd.md').then(motd => {
+      store.fileGet('.', 'motd.md').then(motd => {
         response.motd = motd;
       }).catch(()=> {});
       request.log.info(`User '${userRec.user.login}' has logged in.`);
@@ -317,7 +317,7 @@ function initRoutes(site) {
   });
 
   listener.post(prefix+'/logout', (request, reply) => {
-    let user = auth.getAuth(request, site.secret);
+    let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn("Authorization error during logout.");
       reply.code(401).send('Not authorized.');
@@ -330,14 +330,14 @@ function initRoutes(site) {
   });
 
   listener.get(prefix+'/projects', async (request, reply) => {
-    let user = auth.getAuth(request, site.secret);
+    let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn("Projects list: Not authorized.");
       reply.code(401).send('Not authorized.');
       return;
     }
 
-    site.userListDocs(user.uid, 'projects').then((response) => {
+    store.userListDocs(user.uid, 'projects').then((response) => {
       if (response) {
         reply.type(JSON_TYPE).send(JSON.stringify(response));
       } else {
@@ -348,7 +348,7 @@ function initRoutes(site) {
   })
 
   listener.get(prefix+'/projects/:id', async (request, reply) => {
-    let user = auth.getAuth(request, site.secret);
+    let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn("Project info: Not authorized.");
       reply.code(401).send('Not authorized.');
@@ -356,7 +356,7 @@ function initRoutes(site) {
     }
 
     let id = request.params.id;
-    site.userDocGet(user.uid, 'projects', id).then(response => {
+    store.userDocGet(user.uid, 'projects', id).then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }).catch((err) => { 
       handleError(err, request, reply);
@@ -364,7 +364,7 @@ function initRoutes(site) {
   })
 
   listener.post(prefix+'/projects', async (request, reply) => {
-    let user = auth.getAuth(request, site.secret);
+    let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn("Project POST: not authorized.");
       reply.code(401).send('Not authorized.');
@@ -376,7 +376,7 @@ function initRoutes(site) {
 
     // Next, create user with key from tenant storage.
     // Returns the server key (.secret member is the storage token).
-    site.userDocCreate(user.uid, 'projects', uid, proj)
+    store.userDocCreate(user.uid, 'projects', uid, proj)
     .then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
     }).catch(err => { 
@@ -385,7 +385,7 @@ function initRoutes(site) {
   })
 
   listener.delete(prefix+'/projects/:uid', async (request, reply) => {
-    let user = auth.getAuth(request, site.secret);
+    let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn("Project delete: not authorized.");
       reply.code(401).send('Not authorized.');
@@ -393,7 +393,7 @@ function initRoutes(site) {
     }
 
     let uid = request.params.uid;
-    site.userDocDelete(user.uid, 'projects', uid).then((response) => {
+    store.userDocDelete(user.uid, 'projects', uid).then((response) => {
       request.log.info("Project deleted.");
       reply.type(JSON_TYPE).send(JSON.stringify(response));
       return;
@@ -402,7 +402,7 @@ function initRoutes(site) {
     });
   });
 
-  assets.initRoutes(site);
+  assets.initRoutes(store);
 }
 
 module.exports = { initRoutes };
