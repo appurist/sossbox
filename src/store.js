@@ -7,6 +7,7 @@ const log = require('./log');
 const {SERVER_CFG, USERMETA, PUBLIC_FOLDER, DATA_FOLDER} = require('./constants')
 
 let debug_level = 0;
+let userClients = [ ];
 
 class Store {
   constructor(base) {
@@ -174,6 +175,7 @@ class Store {
     return result;
   }
   async userDeleteSubfolders(who) {
+    let userDataFolders = [ 'assets', 'projects'];
     let result = true;
     for (let folder of userDataFolders) {
       let fresult = await io.folderDelete(this.userFolder(who, folder));
@@ -204,7 +206,7 @@ class Store {
     // TODO: Force-logout all
 
     // now, delete the user at the top-level
-    let result3 = await io.folderDelete(this.userFolder(who));
+    let result3 = await io.folderDelete(this.userFolder(user.uid));
     return result1 && result2 && result3;
   }
 
