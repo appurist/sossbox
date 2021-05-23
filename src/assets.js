@@ -1,8 +1,8 @@
 const multer = require('fastify-multer') // or import multer from 'fastify-multer'
 const auth = require('./auth');
 
-function initRoutes(site) {
-  let listener = site.listener;
+function initRoutes(store) {
+  let listener = store.listener;
   listener.register(multer.contentParser)
   const upload = multer({ dest: './uploads' })
 
@@ -10,7 +10,7 @@ function initRoutes(site) {
   listener.post('/assets', { preHandler: upload.single('upload_file') }, async (request, reply) => {
     // request.file is the upload
     // request.body will hold the text fields, if there were any
-    let user = auth.getAuth(request, site.secret);
+    let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn({req: request}, '/assets request, not authorized.');
       reply.code(401).send('Not authorized.');
