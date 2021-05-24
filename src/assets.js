@@ -6,6 +6,10 @@ const log = require('./log');
 const auth = require('./auth');
 const io = require('./io');
 
+// Upload limits
+const ONEMB = 1048576;
+const MAX_UPLOAD = 10*ONEMB;
+
 function initRoutes(store) {
   let listener = store.listener;
   listener.register(multer.contentParser)
@@ -30,7 +34,8 @@ function initRoutes(store) {
     }
   })
   
-  const upload = multer({ storage: diskStorage });
+  const limits = { fileSize: MAX_UPLOAD, files: 1 };
+  const upload = multer({ storage: diskStorage, limits });
 
   // listener.post('/assets', handleSingleUpload);
   listener.post('/assets', { preHandler: upload.single('upload_file') }, async (request, reply) => {
