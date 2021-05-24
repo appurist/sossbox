@@ -51,6 +51,13 @@ function initRoutes(store) {
     //   size:71627
     // }
 
+    if (!request.file) {
+      let err = new Error('Upload is missing file.');
+      log.error("Asset Upload "+err);
+      reply.code(400).send(err.message);
+      return;
+    }
+
     console.log(`Uploaded file: ${request.file.originalname} (${request.file.size}) -> ${request.file.path}`);
     let user = auth.getAuth(request, store.secret);
     if (!user) {
