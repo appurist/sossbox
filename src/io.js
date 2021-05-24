@@ -122,6 +122,16 @@ async function fileDelete(folder, fn) {
   return await fsPromises.unlink(pn);
 }
 
+// This is a low-level internal call used for error handling in assets.
+async function pathDelete(pn) {
+  if (debug_level) log.info(`unlink: ${pn}`);
+  if (!pn) {
+    log.error('Error (unlink): Invalid delete.')
+    return false;
+  }
+  return await fsPromises.unlink(pn);
+}
+
 //////////////////////////////
 
 // This function returns the position of the first '#' AFTER any '#' characters,
@@ -200,8 +210,6 @@ async function symUnlink(name) {
 
 module.exports = {
   fileExists, filePut, fileGet, fileDelete,
-
   folderExists, folderCreate, folderGet, folderDelete,
-
-  pathStat, symLink, symUnlink, jsonGet
+  pathDelete, pathStat, symLink, symUnlink, jsonGet
  };
