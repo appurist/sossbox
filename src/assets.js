@@ -27,7 +27,6 @@ function initRoutes(store) {
       let user = auth.getAuth(request, store.secret);      
       if (user) {
         let folder = store.userFolder(user.uid, 'assets')
-        console.log("upload dest -> ", folder);
         cb(null, folder);
       } else {
         let err = new Error('Missing user authentication.');
@@ -76,18 +75,19 @@ function initRoutes(store) {
       return;
     }
     let ext = path.extname(request.file.originalname);
+    let which = path.basename(request.file.path, ext);
+    let meta = {
+      id: which,
+      filename: request.file.filename,
+      originalname: request.file.originalname,
+      size: request.file.size,
+      mimetype: request.file.mimetype,
+      uploaded: Date.now()
+    };
     if (ext.toLowerCase() !== '.json') {
-      let which = path.basename(request.file.path, ext);
-      let meta = {
-        filename: request.file.filename,
-        originalname: request.file.originalname,
-        size: request.file.size,
-        mimetype: request.file.mimetype,
-        uploaded: Date.now()
-      };
       await store.userDocCreate(user.uid, 'assets', which+'.json', meta);
     }
-    reply.code(200).send('SUCCESS');
+    reply.type(JSON_TYPE).send(meta);
   });
 
   listener.get(prefix+'/assets/:id', async (request, reply) => {
@@ -125,8 +125,44 @@ function initRoutes(store) {
       reply.type(JSON_TYPE).send(JSON.stringify(err));    
       logRoute(request);
     }
-  })
+  });
 
+  listener.delete(prefix+'/assets/:id', async (request, reply) => {
+    try {
+      let which = request.params.id;
+      let ext = path.extname(which);
+      which = path.basename(which, ext);
+
+      if (ext !== '') {
+        reply.code(400).send('Asset UUID cannot have an extension.')
+        logRoute(request);
+        return;
+      }
+
+      let user = auth.getAuth(request, store.secret);
+      if (!user) {
+        reply.code(401).send('Not authorized.');
+        return;
+      }
+      let who = user.uid;
+
+      if (ext !== '.json') {
+        let meta = await store.userDocGet(who, 'assets', which+'.json');
+        ext = path.extname(meta.originalname);
+      }
+      let folder = store.userFolder(who, 'assets');
+      await io.fileDelete(folder, which+ext);
+      await io.fileDelete(folder, which+'.json');
+      reply.code(200).send('DELETED');
+      logRoute(request);
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        log.error(`/asset: ${err.message}\n${err.stack}`);
+      }
+      reply.type(JSON_TYPE).send(JSON.stringify(err));    
+      logRoute(request);
+    }
+  });
 }
 
 module.exports = { initRoutes };
