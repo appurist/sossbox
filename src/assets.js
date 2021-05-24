@@ -70,8 +70,13 @@ function initRoutes(store) {
     let ext = path.extname(request.file.originalname);
     if (ext.toLowerCase() !== '.json') {
       let which = path.basename(request.file.path, ext);
-      let meta = Object.assign({}, request.file);
-      meta.uploaded = Date.now();
+      let meta = {
+        filename: request.file.filename,
+        originalname: request.file.originalname,
+        size: request.file.size,
+        mimetype: request.file.mimetype,
+        uploaded: Date.now()
+      };
       await store.userDocCreate(user.uid, 'assets', which+'.json', meta);
     }
     reply.code(200).send('SUCCESS');
