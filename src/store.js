@@ -141,13 +141,13 @@ class Store {
   }
 
   async userDocCreate(who, where, which, payload) {
-    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload);
+    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload, null, 2);
     return await io.filePut(this.userFolder(who, where), which, text);
   }
 
   async userDocReplace(who, where, which, payload) {
     // replace doc with payload
-    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload);
+    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload, null, 2);
     return await io.filePut(this.userFolder(who, where), which, text);
   }
 
@@ -156,7 +156,7 @@ class Store {
     let rec = await io.fileGet(folder, which);
     // update (merge) doc with payload
     let payload = Object.assign({ }, rec, updates);
-    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload);
+    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload, null, 2);
     return await io.filePut(folder, which, text);
   }
 
@@ -191,7 +191,7 @@ class Store {
       return false; // signals route handler to 409 it.
     }
     await this.userCreateTree(user.uid);
-    await io.filePut(this.userFolder(user.uid, ''), USERMETA, JSON.stringify(payload, 2));
+    await io.filePut(this.userFolder(user.uid, ''), USERMETA, JSON.stringify(payload, null, 2));
     await this.userLink(user.login, user.uid);
     return payload; // the only really important one?
   }
