@@ -123,7 +123,7 @@ async function serverInit() {
   }
   await store.init(SERVER_CFG);
 
-  if (store.hasOwnProperty("cors")) {
+  if (store.cors) {
     corsOptions = store.cors;  // usually  { origin: true }
   }
   log.info(`CORS support: ${corsOptions}`);
