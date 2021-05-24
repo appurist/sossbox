@@ -1,5 +1,6 @@
 const path = require('path');
 //const fsPromises = require("fs/promises");  // requires Node 14.0.0 or later
+const fs = require("fs");
 const fsPromises = require("fs").promises;
 const log = require('./log');
 
@@ -72,14 +73,19 @@ async function folderGet(folder) {
   return result;
 }
 
-async function fileGet(folder, fn) {
+async function fileGet(folder, fn, encoding) {
   if (debug_level) log.info(`readFile: ${folder} ${fn}`);
   if (!fn) {
     log.error('Error (writeFile): Invalid read.')
     return false;
   }
   let pn = folder ? path.resolve(folder, fn) : path.resolve(fn);
-  const result = await fsPromises.readFile(pn,'utf8');
+
+  // If third parameter is not supplied, assume UTF-8, otherise use it directly (pass null for binary).
+  let enc = (encoding === undefined) ? 'utf8' : encoding;
+
+  // const result =  fs.readFileSync(pn,'utf8');
+  const result = await fsPromises.readFile(pn, {encoding: enc});
   return result;
 }
 

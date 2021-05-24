@@ -6,13 +6,21 @@ const log = require('./log');
 const auth = require('./auth');
 const io = require('./io');
 
+const JSON_TYPE = 'application/json; charset=utf-8';
+
 // Upload limits
 const ONEMB = 1048576;
 const MAX_UPLOAD = 10*ONEMB;
 
+function logRoute(req, err) {
+  req.log.info({req, err}, 'route handler');
+}
+
 function initRoutes(store) {
   let listener = store.listener;
   listener.register(multer.contentParser)
+
+  let prefix = (store.api === '/') ? '' : store.api;  // store '/' as an empty string for concatenation
 
   var diskStorage = multer.diskStorage({
     destination: function (request, file, cb) {
@@ -38,7 +46,7 @@ function initRoutes(store) {
   const upload = multer({ storage: diskStorage, limits });
 
   // listener.post('/assets', handleSingleUpload);
-  listener.post('/assets', { preHandler: upload.single('upload_file') }, async (request, reply) => {
+  listener.post(prefix+'/assets', { preHandler: upload.single('upload_file') }, async (request, reply) => {
     // request.body will hold the text fields, if there were any
     // request.file is the upload metadata: {
     //   destination:'./uploads'
@@ -81,6 +89,44 @@ function initRoutes(store) {
     }
     reply.code(200).send('SUCCESS');
   });
+
+  listener.get(prefix+'/assets/:id', async (request, reply) => {
+    try {
+      let which = request.params.id;
+      let ext = path.extname(which);
+      let isJSON = (ext === '.json') ? true : false;
+      which = path.basename(which, ext);
+
+      let user = auth.getAuth(request, store.secret);
+      if (!user) {
+        reply.code(401).send('Not authorized.');
+        return;
+      }
+      let who = user.uid;
+
+      let meta = await store.userDocGet(who, 'assets', which+'.json');
+      ext = path.extname(meta.originalname);
+      if (isJSON) {
+        reply.type(JSON_TYPE).send(meta);
+        logRoute(request);
+        return;
+      }
+
+      let data = await io.fileGet(store.userFolder(who, 'assets'), which+ext, null);  // binary
+      // reply.header('Content-disposition', 'attachment; filename=' + meta.originalname);
+      reply.header('Content-disposition', 'inline; filename=' + meta.originalname);
+      reply.type(meta.mimetype);
+      reply.send(data);
+      logRoute(request);
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        log.error(`/asset: ${err.message}\n${err.stack}`);
+      }
+      reply.type(JSON_TYPE).send(JSON.stringify(err));    
+      logRoute(request);
+    }
+  })
+
 }
 
 module.exports = { initRoutes };
