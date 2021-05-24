@@ -7,6 +7,7 @@ const log = require('./log');
 const {SERVER_CFG, USERMETA, PUBLIC_FOLDER, DATA_FOLDER} = require('./constants')
 
 let debug_level = 0;
+let userClients = [ ];
 
 class Store {
   constructor(base) {
@@ -140,13 +141,13 @@ class Store {
   }
 
   async userDocCreate(who, where, which, payload) {
-    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload);
+    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload, null, 2);
     return await io.filePut(this.userFolder(who, where), which, text);
   }
 
   async userDocReplace(who, where, which, payload) {
     // replace doc with payload
-    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload);
+    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload, null, 2);
     return await io.filePut(this.userFolder(who, where), which, text);
   }
 
@@ -155,7 +156,7 @@ class Store {
     let rec = await io.fileGet(folder, which);
     // update (merge) doc with payload
     let payload = Object.assign({ }, rec, updates);
-    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload);
+    let text = (typeof payload === 'string') ? payload : JSON.stringify(payload, null, 2);
     return await io.filePut(folder, which, text);
   }
 
@@ -174,6 +175,7 @@ class Store {
     return result;
   }
   async userDeleteSubfolders(who) {
+    let userDataFolders = [ 'assets', 'projects'];
     let result = true;
     for (let folder of userDataFolders) {
       let fresult = await io.folderDelete(this.userFolder(who, folder));
@@ -189,7 +191,7 @@ class Store {
       return false; // signals route handler to 409 it.
     }
     await this.userCreateTree(user.uid);
-    await io.filePut(this.userFolder(user.uid, ''), USERMETA, JSON.stringify(payload, 2));
+    await io.filePut(this.userFolder(user.uid, ''), USERMETA, JSON.stringify(payload, null, 2));
     await this.userLink(user.login, user.uid);
     return payload; // the only really important one?
   }
@@ -204,7 +206,7 @@ class Store {
     // TODO: Force-logout all
 
     // now, delete the user at the top-level
-    let result3 = await io.folderDelete(this.userFolder(who));
+    let result3 = await io.folderDelete(this.userFolder(user.uid));
     return result1 && result2 && result3;
   }
 

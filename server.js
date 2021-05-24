@@ -38,7 +38,7 @@ function handleShutdown(rc) {
 }
 
 // unconditionally delete any existing pid file on startup, to ensure it's always the latest run.
-try { unlinkSync(PIDFILE); } catch (err) {}
+try { unlinkSync(PIDFILE); } catch (err) { /* do nothing */ }
 try {
   pid = npid.create(PIDFILE);
   pid.removeOnExit();
@@ -123,7 +123,7 @@ async function serverInit() {
   }
   await store.init(SERVER_CFG);
 
-  if (store.hasOwnProperty("cors")) {
+  if (store.cors) {
     corsOptions = store.cors;  // usually  { origin: true }
   }
   log.info(`CORS support: ${corsOptions}`);

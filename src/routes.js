@@ -14,6 +14,7 @@ function logRoute(req, err) {
 }
 
 // pass null for reply if it should not send the reply automatically
+let first = true;
 function handleError(err, request, reply) {
   if (!err.requestResult) {
     log.error(err.message);
@@ -44,9 +45,10 @@ function handleError(err, request, reply) {
         firstText = details.description;
       }
     }
+    firstCode = firstCode || result.statusCode || 500;
+    firstText = firstText || err.message || `unknown error on ${request.method}`;
+    console.error(`Error ${firstCode}: ${firstText}`);
     if (reply) {
-      firstCode = firstCode || result.statusCode || 500;
-      firstText = firstText || err.message || `unknown error on ${request.method}`;
       // reply.code(firstCode).send(firstText);
       throw err;
     }
@@ -108,7 +110,7 @@ function initRoutes(store) {
   })
 
   // support the websocket
-  listener.get(prefix+'/updates', { websocket: true }, (connection, req) => {
+  listener.get(prefix+'/updates', { websocket: true }, (connection) => {
     log.info("socket connected.");
     connection.socket.on('message', (message) => {
       if (message.startsWith('user,')) {
@@ -170,7 +172,7 @@ function initRoutes(store) {
     // TODO: This needs to merge the payload with the current profile data.
     let meta = store.userByUID(user.uid, "meta");
     meta.user = Object.assign({}, meta.user, request.body);
-    await userDocReplace(user, '', "meta", meta);
+    await store.userDocReplace(user, '', "meta", meta);
     request.log.info('/profile PUT');
     reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
   })
@@ -311,7 +313,7 @@ function initRoutes(store) {
       request.log.info(`User '${userRec.user.login}' has logged in.`);
       reply.type(JSON_TYPE).send(JSON.stringify(response));    
     }).catch((err) => {
-      request.log.warn('Authentication failed.');
+      request.log.warn('Authentication failed:',err);
       reply.code(401).send('Authentication failed.');
     });
   });

@@ -72,14 +72,19 @@ async function folderGet(folder) {
   return result;
 }
 
-async function fileGet(folder, fn) {
+async function fileGet(folder, fn, encoding) {
   if (debug_level) log.info(`readFile: ${folder} ${fn}`);
   if (!fn) {
     log.error('Error (writeFile): Invalid read.')
     return false;
   }
   let pn = folder ? path.resolve(folder, fn) : path.resolve(fn);
-  const result = await fsPromises.readFile(pn,'utf8');
+
+  // If third parameter is not supplied, assume UTF-8, otherise use it directly (pass null for binary).
+  let enc = (encoding === undefined) ? 'utf8' : encoding;
+
+  // const result =  fs.readFileSync(pn,'utf8');
+  const result = await fsPromises.readFile(pn, {encoding: enc});
   return result;
 }
 
@@ -119,6 +124,16 @@ async function fileDelete(folder, fn) {
   }
 
   let pn = path.resolve(folder, fn);
+  return await fsPromises.unlink(pn);
+}
+
+// This is a low-level internal call used for error handling in assets.
+async function pathDelete(pn) {
+  if (debug_level) log.info(`unlink: ${pn}`);
+  if (!pn) {
+    log.error('Error (unlink): Invalid delete.')
+    return false;
+  }
   return await fsPromises.unlink(pn);
 }
 
@@ -200,8 +215,6 @@ async function symUnlink(name) {
 
 module.exports = {
   fileExists, filePut, fileGet, fileDelete,
-
   folderExists, folderCreate, folderGet, folderDelete,
-
-  pathStat, symLink, symUnlink, jsonGet
+  pathDelete, pathStat, symLink, symUnlink, jsonGet
  };

@@ -1,6 +1,6 @@
 {
   "name": "sossbox",
-  "version": "2.4.10522",
+  "version": "2.4.10523",
   "description": "A Simple Online Storage Server.",
   "main": "server.js",
   "bin": "server.js",
@@ -49,6 +49,7 @@
     "ws": "^7.3.1"
   },
   "devDependencies": {
+    "eslint": "^7.27.0",
     "jest": "^26.6.3",
     "pino-pretty": "^4.3.0",
     "pkg": "^4.4.9"

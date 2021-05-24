@@ -76,3 +76,5 @@ sossbox-macos
 reference/SOSSBox.v1.yaml
 
 uploads/
+
+*.dat
