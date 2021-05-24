@@ -38,7 +38,7 @@ function handleShutdown(rc) {
 }
 
 // unconditionally delete any existing pid file on startup, to ensure it's always the latest run.
-try { unlinkSync(PIDFILE); } catch (err) {}
+try { unlinkSync(PIDFILE); } catch (err) { /* do nothing */ }
 try {
   pid = npid.create(PIDFILE);
   pid.removeOnExit();
