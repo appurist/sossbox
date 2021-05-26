@@ -1,6 +1,5 @@
 const path = require('path');
 const fs = require('fs');
-const { time } = require('console');
 
 const OFF = 0;
 const DEBUG = 1;
@@ -9,10 +8,6 @@ const WARN = 5;
 const ERROR = 7;
 const FATAL = 8;
 const FORCE = 9;  // always comes out but displayed like INFO.
-
-function micros(ms) {
-  return Math.round(ms*1000);
-}
 
 function rootname(fn) {
   return path.basename(path.basename(fn, '.exe'), '.EXE');

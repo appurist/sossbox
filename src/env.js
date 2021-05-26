@@ -1,8 +1,8 @@
 let prefix = '';
-if (process.env.hasOwnProperty('SOSSBOX_PREFIX')) {
+if (process.env['SOSSBOX_PREFIX']) {
   prefix = process.env['SOSSBOX_PREFIX'];
 } else
-if (process.env.hasOwnProperty('PREFIX')) {
+if (process.env['PREFIX']) {
   prefix = process.env['PREFIX'];
 }
 
@@ -10,10 +10,10 @@ function envGet(envKey, envDefault) {
   let sosskey = prefix + envKey;
   let result;
   // Prefer SOSSBOX_key over key, but fall back to allow keys like 'PORT' to override be used to support hosting environments.
-  if (process.env.hasOwnProperty(sosskey)) {
+  if (process.env[sosskey]) {
     result = process.env[sosskey];
   } else
-  if (process.env.hasOwnProperty(envKey)) {
+  if (process.env[envKey]) {
     result = process.env[envKey];
   } else {
     result = envDefault;
