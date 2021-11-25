@@ -2009,10 +2009,10 @@ fastify-websocket@2:
     find-my-way "^3.0.5"
     ws "^7.4.2"
 
-fastify@^3.1.1:
-  version "3.22.0"
-  resolved "https://registry.yarnpkg.com/fastify/-/fastify-3.22.0.tgz#c8d265f0117762c0139fb0b567e815165e02a5e1"
-  integrity sha512-JWNf/S90SOiOp6SwhMFdTT43+jT/gB2Yi2tPHQ/e7Kaua9PzFLm7Qmwhe2jBA3X6HPDKNugrRd7oPYeIb1Q3Zg==
+fastify@^3.22.1:
+  version "3.24.0"
+  resolved "https://registry.yarnpkg.com/fastify/-/fastify-3.24.0.tgz#38b64e6a2f459dacda4a8342306b0882de534b58"
+  integrity sha512-fmRyrI25rzLGHDQ1FME02NsbP658mVa0EaSqfYUFwx2UOF+4/GcyNrsdWILSDOEiUbOsRYCD3sRCE9v7mvRLRQ==
   dependencies:
     "@fastify/ajv-compiler" "^1.0.0"
     abstract-logging "^2.0.0"
@@ -2025,7 +2025,6 @@ fastify@^3.1.1:
     light-my-request "^4.2.0"
     pino "^6.13.0"
     proxy-addr "^2.0.7"
-    readable-stream "^3.4.0"
     rfdc "^1.1.4"
     secure-json-parse "^2.0.0"
     semver "^7.3.2"
