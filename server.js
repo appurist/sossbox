@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Require the framework and instantiate it
-const path = require('path')
-const fastify = require('fastify')
-const fastifyCORS = require('@fastify/cors')
-const fastifyStatic = require('@fastify/static');
+const path = require('node:path')
+const Koa = require("koa")
+const serve = require("koa-static")
+
 const {SERVER_CFG, KEY_FILE, CRT_FILE} = require('./src/constants')
 
 const log = require('./src/log');
@@ -14,8 +14,8 @@ const routes = require('./src/routes')
 // read .env and .env.defaults
 require('dotenv-defaults/config');
 
-let listener = undefined;
-let store = undefined;
+let listener = null;
+let store = null;
 
 let corsOptions = { origin: true };
 
@@ -23,7 +23,7 @@ let corsOptions = { origin: true };
 const npid = require('npid');
 const { unlinkSync } = require('fs');
 const PIDFILE = path.join(process.cwd(),'sossdata.pid')
-let pid = undefined;  // the npid instance
+let pid = null;  // the npid instance
 
 function handleShutdown(rc) {
   if (listener) {
@@ -59,7 +59,7 @@ process.on('SIGINT', () => {
 // Returns the SSL or non-SSL related options
 async function getListenerOptions(id, sslPath) {
   let options = { };
-  let sslOptions = undefined;
+  let sslOptions = null;
 
   let keyExists = await io.fileExists(sslPath, KEY_FILE)
   let crtExists = await io.fileExists(sslPath, CRT_FILE)
@@ -111,7 +111,7 @@ let rootFolder = process.cwd();
 async function serverInit() {
   store = new Store(rootFolder);
   if (!store) {
-    log.error(`Environment configuration error: ${store}`);
+    log.error(`Environment configuration error: ${JSON.stringify(store)}`);
     return null;
   }
   await store.init(SERVER_CFG);
@@ -119,7 +119,7 @@ async function serverInit() {
   if (store.cors) {
     corsOptions = store.cors;  // usually  { origin: true }
   }
-  log.info(`CORS support: ${corsOptions}`);
+  log.info(`CORS support: ${JSON.stringify(corsOptions)}`);
 
   let sslPath = path.join(store.base, 'ssl');
   store.options = await getListenerOptions(store.id, sslPath);
@@ -137,9 +137,14 @@ async function serverInit() {
   log.info(`Logging level '${loglevel}' for store '${store.id}' in ${logfile}`);
 
   // Save the fastify listener for easy access.
-  store.listener = fastify(store.options);
-  store.listener.register(fastifyCORS, corsOptions);
-  listener = store.listener;
+  // store.listener = fastify(store.options);
+  // store.listener.register(fastifyCORS, corsOptions);
+  // listener = store.listener;
+
+  // Initialize the Koa server.
+  const app = new Koa();
+  app.use(serve("public"));
+  // app.use(serve(path.join(__dirname, '/public')))
 
   // Initialize the SOSSData server REST API endpoints.
   if (store.storage) {
@@ -163,13 +168,14 @@ async function serverInit() {
       staticOptions.prefix = store.api;
     }
 
-    store.listener.register(fastifyStatic, staticOptions);
+    // store.listener.register(fastifyStatic, staticOptions);
+    app.listen(port, host);
 
     // this will work with @fastify/static and send /index.html
-    store.listener.setNotFoundHandler((_, reply) => {
-      reply.sendFile('index.html');
-      //reply.redirect('/index.html');
-    })
+    // store.listener.setNotFoundHandler((_, reply) => {
+    //   reply.sendFile('index.html');
+    //   //reply.redirect('/index.html');
+    // })
   } else {
     store.listener.get('/api', (_, reply) => {
       reply.send('You have reached the API server for '+name)

@@ -1,13 +1,16 @@
 const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
-const fastifyWebsocket = require('@fastify/websocket');
+
+const Router = require('@koa/router');
 
 const assets = require('./assets');
 const auth = require('./auth');
 const log = require('./log');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
+
+const router = new Router();
 
 function logRoute(req, err) {
   req.log.info({req, err}, 'route handler');
@@ -63,8 +66,6 @@ log.force('SOSSData '+packageVersion);
 function initRoutes(store) {
   let listener = store.listener;
 
-  listener.register(fastifyWebsocket);
-
   function makeUserResponse(user) {
     let response = Object.assign({ }, user)
     response.administrator = (response.login === store.admin) || (response.uid === store.admin);
@@ -74,12 +75,21 @@ function initRoutes(store) {
   // Declare a route
   let prefix = (store.api === '/') ? '' : store.api;  // store '/' as an empty string for concatenation
   // log.info(`${store.id}: Enabling storage API ...`)
-  listener.get(prefix+'/ping', async (request, reply) => {
-    try {
-      reply.type(JSON_TYPE).send(JSON.stringify({name: store.id, version: packageVersion}));
-    } catch (err) {
-      handleError(err, request, reply);
-    }
+  router.get(prefix + '/ping', (ctx, next) => {
+    ctx.type = JSON_TYPE;
+    ctx.body = JSON.stringify({name: store.id, version: packageVersion});
+  })
+  router.get(prefix + '/status', (ctx, next) => {
+    ctx.type = JSON_TYPE;
+    let response = {
+      version: packageVersion,
+      id: store.id,
+      name: store.name,
+      domain: store.domain,
+      registration: store.registration,
+      motd: ''
+    };
+    ctx.body = JSON.stringify(response);
   })
   listener.get(prefix+'/status', async (request, reply) => {
     let response = {
@@ -91,12 +101,14 @@ function initRoutes(store) {
       motd: ''
     };
     try {
+      ctx.type = JSON_TYPE;
       auth.getAuth(request, store.secret); // ignore the optional result, we're just updating the request for logging
 
       if (store.data) {
         response.motd = await store.fileGet(store.data, 'motd.md');
       }
       logRoute(request);
+
       reply.type(JSON_TYPE).send(JSON.stringify(response));
     } catch (err) {
       if (err.code !== 'ENOENT') {
