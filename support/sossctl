@@ -4,7 +4,7 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-SOSSBOX=$HOME/bin/sossdata
+SOSSDATA=$HOME/bin/sossdata
 
 PWD=`pwd`
 site=`basename $PWD`
@@ -12,7 +12,7 @@ site=`basename $PWD`
 echo "sossctl $*"
 if [ "$1" = "start" ]; then
   echo "Starting sossdata instance for '$site' ..."
-  $SOSSBOX
+  $SOSSDATA
 elif [ "$1" = "stop" ]; then
   if [ -s sossdata.pid ]; then
     kill -TERM --pid `cat sossdata.pid`
@@ -22,7 +22,7 @@ elif [ "$1" = "stop" ]; then
   fi
 elif [ "$1" = "restart" ]; then
   echo "Restarting sossdata instance for '$site' ..."
-  kill -TERM --pid `cat sossdata.pid` && $SOSSBOX
+  kill -TERM --pid `cat sossdata.pid` && $SOSSDATA
 elif [ "$1" = "status" ]; then
   # ps --pid `cat sossdata.pid`
   systemctl status $site
