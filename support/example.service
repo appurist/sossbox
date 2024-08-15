@@ -11,7 +11,7 @@ LimitNOFILE=infinity
 LimitNPROC=infinity
 LimitCORE=infinity
 Environment=PATH=/home/api/.local/bin:/home/api/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
-PIDFile=/home/api/authordesktop/sossbox.pid
+PIDFile=/home/api/authordesktop/sossdata.pid
 Restart=on-failure
 
 ExecStart=/usr/bin/sh /home/api/bin/sossctl start

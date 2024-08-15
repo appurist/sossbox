@@ -22,7 +22,7 @@ let corsOptions = { origin: true };
 // Initialize and maintain the pid file.
 const npid = require('npid');
 const { unlinkSync } = require('fs');
-const PIDFILE = path.join(process.cwd(),'sossbox.pid')
+const PIDFILE = path.join(process.cwd(),'sossdata.pid')
 let pid = undefined;  // the npid instance
 
 function handleShutdown(rc) {
@@ -130,7 +130,7 @@ async function serverInit() {
   if (loglevel === 'true') {
     loglevel = 'error'; // provide a default level
   }
-  let logfile = store.logfile || `sossbox.log`
+  let logfile = store.logfile || `sossdata.log`
   log.init(loglevel, logfile);
 
   store.options.logger = true;
@@ -148,7 +148,7 @@ async function serverInit() {
 
   let port = store.port || (store.options.https ? 443 : 80);
   let host = store.host || '0.0.0.0'; // all NICs
-  let id = store.id || 'sossbox';
+  let id = store.id || 'sossdata';
   let name = store.domain || id;
 
   if (store.public) {

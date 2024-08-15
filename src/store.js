@@ -23,9 +23,9 @@ class Store {
     this.secret = envGet('SECRET', 'secret');
     this.admin = envGet('ADMIN', 'admin');
     this.loglevel = envGet('LOGLEVEL', 'warn');
-    this.logfile = envGet('LOGFILE', 'sossbox.log');
+    this.logfile = envGet('LOGFILE', 'sossdata.log');
     // the default identity
-    this.id = envGet('ID', 'sossbox');
+    this.id = envGet('ID', 'sossdata');
     this.name = envGet('NAME', 'SOSSBox');
   }
 
@@ -93,7 +93,7 @@ class Store {
     let file = await io.fileExists(this.data, 'logins');
     return folder || file;
   }
-  
+
   // this method uses a file system link to associate a login ID with a user UID (folder)
   async userLink(name, who) {
     if (debug_level) log.info(`userLink: ${name} ${who}`);

@@ -24,10 +24,10 @@ function executableFolder() {
 }
 
 let execFolder = executableFolder();
-let logPath = path.join(execFolder,'sossbox.log');
+let logPath = path.join(execFolder,'sossdata.log');
 let logLevel = WARN;
 
-init(logLevel, 'sossbox.log')
+init(logLevel, 'sossdata.log')
 
 // loglevel must be a normal loglevel string from the levels array above.
 function init(level, fn) {

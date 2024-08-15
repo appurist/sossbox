@@ -61,7 +61,7 @@ typings/
 .next
 
 # production/deployment-specific files
-sossbox.cfg
+sossdata.cfg
 ssl/*.crt
 ssl/*.key
 data/
@@ -69,9 +69,9 @@ data/
 
 # build output files
 dist/
-sossbox
-sossbox.exe
-sossbox-macos
+sossdata
+sossdata.exe
+sossdata-macos
 
 reference/SOSSBox.v1.yaml
 
