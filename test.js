@@ -2,7 +2,6 @@ const path = require('node:path')
 
 const Koa = require("koa");
 const serve = require("koa-static");
-const mount = require('koa-mount');
 const Router = require('@koa/router');
 
 const app = new Koa();
@@ -10,7 +9,6 @@ const router = new Router();
 
 app.use(serve("public"));
 app.use(serve(path.join(__dirname, '/public')))
-
 
 router.get('/api/:arg', (ctx, next) => {
   console.log("api path: "+ctx.path, ctx.params);
