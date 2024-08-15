@@ -5,6 +5,12 @@ const log = require('./log');
 
 let debug_level = 0;
 
+/* Summary of io interface required:
+folderExists, folderCreate, folderGet, folderDelete,
+fileExists, fileCreate, filePut, fileGet, fileDelete, pathDelete
+jsonGet, symLink, symUnlink
+*/
+
 async function pathStat(folder, fn) {
   try {
     let pn = path.resolve(folder, fn);
@@ -139,7 +145,7 @@ async function pathDelete(pn) {
 
 //////////////////////////////
 
-// This function returns the position of the first '#' AFTER any '#' characters,
+// This function returns the position of the first '#' AFTER any '"' characters,
 // but handles the case where the '#' comes first.
 function findComment(line) {
   let x = line.indexOf('#');

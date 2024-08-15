@@ -4,27 +4,27 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-SOSSBOX=$HOME/bin/sossbox
+SOSSBOX=$HOME/bin/sossdata
 
 PWD=`pwd`
 site=`basename $PWD`
 
 echo "sossctl $*"
 if [ "$1" = "start" ]; then
-  echo "Starting sossbox instance for '$site' ..."
+  echo "Starting sossdata instance for '$site' ..."
   $SOSSBOX
 elif [ "$1" = "stop" ]; then
-  if [ -s sossbox.pid ]; then
-    kill -TERM --pid `cat sossbox.pid`
-    echo "Sent terminate to sossbox instance for '$site' ..."
+  if [ -s sossdata.pid ]; then
+    kill -TERM --pid `cat sossdata.pid`
+    echo "Sent terminate to sossdata instance for '$site' ..."
   else
-    echo "sossbox is not running in `pwd`"
+    echo "sossdata is not running in `pwd`"
   fi
 elif [ "$1" = "restart" ]; then
-  echo "Restarting sossbox instance for '$site' ..."
-  kill -TERM --pid `cat sossbox.pid` && $SOSSBOX
+  echo "Restarting sossdata instance for '$site' ..."
+  kill -TERM --pid `cat sossdata.pid` && $SOSSBOX
 elif [ "$1" = "status" ]; then
-  # ps --pid `cat sossbox.pid`
+  # ps --pid `cat sossdata.pid`
   systemctl status $site
 elif [ "$1" = "log" ]; then
   journalctl -u $site -n 20

@@ -28,21 +28,21 @@ The reply to the `/login` route is a bit of a special case, that adds a `token` 
 #### GET /ping
 Verifies server availability and type of server.
 
-Response body: 
+Response body:
 `{ name, version }`
-Server name (type), always `'sossbox'` for SOSSBox servers, plus server version (same as in `/status` below.
+Server name (type), always `'sossdata'` for SOSSBox servers, plus server version (same as in `/status` below.
 
 #### GET /status
-Returns information about this SOSSBox site. A mix of info from the sossbox.cfg file and server status such as version number.
+Returns information about this SOSSBox site. A mix of info from the sossdata.cfg file and server status such as version number.
 
-Response body: 
+Response body:
 `{ version, id, name, domain, registration, motd }`
 Server version, site id, site name, site domain, boolean indicating whether user registrion is open, optional message of the day (as markdown text).
 
 #### PUT /login
-Request body: 
+Request body:
 `{ login, password }`
-Response body: 
+Response body:
 `{ uid, login, display, email, administrator, image, token}`
 Returns the user definition for the specified login name, as well as an authentication token.
 
@@ -51,7 +51,7 @@ ________________
 ## Users and Profiles (authenticated):
 
 #### POST /logout
-Response body (see User Profile): 
+Response body (see User Profile):
 `{ message: 'You have been logged out.', result: 'OK' }`
 Logs out the user.
 _At this time, it actually does nothing at the server end other than validate the authentication token. Important for future server use._
@@ -85,7 +85,7 @@ Response body:
 Returns the user definition for the account specified by the login ID.
 
 #### DELETE /users/:uid
-Response body: 
+Response body:
 `{ uid, login, display, email, administrator, image }`
 Deletes the user definition for the account specified by the login ID. Returns the former user def.
 
@@ -96,23 +96,23 @@ ________________
 #### GET /projects
 Retrieves a list of all projects (IDs).
 
-Response body: 
+Response body:
 `[ uuid1, uuid2, … ]`
 Returns an array of project UUIDs.
 
 #### POST /projects
 Creates a new project.
 
-Request body: 
+Request body:
 `{ project definition, without a uid … }`
-Response body: 
+Response body:
 `{ uid: new_uuid, project definition fields … }`
 Assigns a UUID to a new project and stores it.
 
 Note that the definition of a project is not specified; it depends on the project. The only known field is a `uid` and that the full definition may have UUIDs in some fields representing assets.
 
 #### GET /projects/:id
-Response body: 
+Response body:
 `{ project definition }`
 Returns the definition for the project specified by the route ID.
 
@@ -120,18 +120,18 @@ Returns the definition for the project specified by the route ID.
 #### PUT /projects:id
 Updates an existing project.
 
-Request body: 
+Request body:
 `{ project definition, without a uid … }`
 Fields are optional and represent updates if present.
 
-Response body: 
+Response body:
 `{ uid, all other project definition fields }`
 Returns the full record for the project definition, including the uid, after merging updated fields.
 
 #### DELETE /projects/:uid
 Deletes a project.
 
-Response body: 
+Response body:
 `{ project definition}`
 Deletes the project specified by the uid in the route. Returns the former project def.
 Note that this operation does **not** delete any dependent resources such as associated assets, since that requires knowlege of the project definition and which fields might represent dependents such as assets.
@@ -140,37 +140,37 @@ ________________
 ### Assets (authenticated):
 
 #### GET /assets?type=xyz
-Response body: 
+Response body:
 `[ uuid1, uuid2, … ]`
 Returns an array of available user assets, filtered by type (if specified).
 
 #### POST /assets
-Request body: 
+Request body:
 `{ asset metadata definition, required type, optional uid … }`
-Response body: 
+Response body:
 `{ uid: new_asset_uuid, asset metadata fields … }`
 Stores the metadata for an asset, optionally assigning a specific UUID to a new asset. Enables `POST` or `PUT` to an actual binary asset by ID (below), if the asset is not a JSON document.
 
 #### PUT /assets/:id
-Request body: 
+Request body:
 `{ partial or full json metadata fields for asset }`
-Response body: 
+Response body:
 `{ updated asset metadata fields … }`
 Updates the JSON metadata for an asset which has been previously defined via `POST /assets`. Use `POST` with ID to replace the full asset binary, `PUT` with ID to update the JSON metadata only.
 
 #### POST /assets/:id
-Request body: 
+Request body:
 `{ binary asset data }`
-Response body: 
+Response body:
 `{ asset metadata fields … }`
 Stores the actual binary data content for an asset which has been previously defined via `POST /assets`, thus of a known type. Use this `POST` with ID to set or replace the binary asset data itself; use `PUT` with ID to update the JSON metadata only.
 
 #### GET /assets/:id
-Response body: 
+Response body:
 `{ user project definition }`
 Returns the definition for the project specified by the route ID.
 
 #### DELETE /projects/:uid
-Response body: 
+Response body:
 `{ project definition}`
 Deletes the project specified by the uid in the route. Returns the former project def.

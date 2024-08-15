@@ -2,8 +2,8 @@
 // Require the framework and instantiate it
 const path = require('path')
 const fastify = require('fastify')
-const fastifyCORS = require('fastify-cors')
-const fastifyStatic = require('fastify-static');
+const fastifyCORS = require('@fastify/cors')
+const fastifyStatic = require('@fastify/static');
 const {SERVER_CFG, KEY_FILE, CRT_FILE} = require('./src/constants')
 
 const log = require('./src/log');
@@ -22,7 +22,7 @@ let corsOptions = { origin: true };
 // Initialize and maintain the pid file.
 const npid = require('npid');
 const { unlinkSync } = require('fs');
-const PIDFILE = path.join(process.cwd(),'sossbox.pid')
+const PIDFILE = path.join(process.cwd(),'sossdata.pid')
 let pid = undefined;  // the npid instance
 
 function handleShutdown(rc) {
@@ -92,18 +92,11 @@ function onError(err) {
 }
 
 process.on('uncaughtException', onError);
-  
+
 function listenerStart(listener, id, host, port) {
   // Start the server listening.
-  listener.listen(port, host, (err) => {
-    if (err) {
-      log.error(err.message);
-      handleShutdown(1);
-    }
-
-    let port = listener.server.address().port;
-    log.info(`${id}: Now listening on port ${port}.`);
-  })
+  listener.listen({port, host});
+  log.info(`Server '${id}' listening on port ${port} ...`);
 
   // dump routes at startup?
   if (process.argv.includes('--dump')) {
@@ -137,10 +130,10 @@ async function serverInit() {
   if (loglevel === 'true') {
     loglevel = 'error'; // provide a default level
   }
-  let logfile = store.logfile || `sossbox.log`
+  let logfile = store.logfile || `sossdata.log`
   log.init(loglevel, logfile);
 
-  store.options.logger = log;
+  store.options.logger = true;
   log.info(`Logging level '${loglevel}' for store '${store.id}' in ${logfile}`);
 
   // Save the fastify listener for easy access.
@@ -155,7 +148,7 @@ async function serverInit() {
 
   let port = store.port || (store.options.https ? 443 : 80);
   let host = store.host || '0.0.0.0'; // all NICs
-  let id = store.id || 'sossbox';
+  let id = store.id || 'sossdata';
   let name = store.domain || id;
 
   if (store.public) {
@@ -169,9 +162,10 @@ async function serverInit() {
       staticOptions.redirect = true;
       staticOptions.prefix = store.api;
     }
+
     store.listener.register(fastifyStatic, staticOptions);
 
-    // this will work with fastify-static and send /index.html
+    // this will work with @fastify/static and send /index.html
     store.listener.setNotFoundHandler((_, reply) => {
       reply.sendFile('index.html');
       //reply.redirect('/index.html');
