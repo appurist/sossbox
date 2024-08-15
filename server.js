@@ -96,6 +96,7 @@ process.on('uncaughtException', onError);
 function listenerStart(listener, id, host, port) {
   // Start the server listening.
   listener.listen({port, host});
+  log.info(`Server '${id}' listening on port ${port} ...`);
 
   // dump routes at startup?
   if (process.argv.includes('--dump')) {
@@ -161,6 +162,7 @@ async function serverInit() {
       staticOptions.redirect = true;
       staticOptions.prefix = store.api;
     }
+
     store.listener.register(fastifyStatic, staticOptions);
 
     // this will work with @fastify/static and send /index.html
