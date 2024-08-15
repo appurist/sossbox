@@ -171,7 +171,7 @@ async function serverInit() {
       //reply.redirect('/index.html');
     })
   } else {
-    store.listener.get('/', (_, reply) => {
+    store.listener.get('/api', (_, reply) => {
       reply.send('You have reached the API server for '+name)
     });
   }
