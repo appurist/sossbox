@@ -1,4 +1,4 @@
-﻿# SOSSBox REST API
+﻿# SOSSData REST API
 
 There are to classes of endpoint routes: those requiring authentication, and those that do not. There are also a few common object types passed to or returned by these REST endpoints. The most common is the user profile object type, but each of these is documented below.
 
@@ -30,10 +30,10 @@ Verifies server availability and type of server.
 
 Response body:
 `{ name, version }`
-Server name (type), always `'sossdata'` for SOSSBox servers, plus server version (same as in `/status` below.
+Server name (type), always `'sossdata'` for SOSSData servers, plus server version (same as in `/status` below.
 
 #### GET /status
-Returns information about this SOSSBox site. A mix of info from the sossdata.cfg file and server status such as version number.
+Returns information about this SOSSData site. A mix of info from the sossdata.cfg file and server status such as version number.
 
 Response body:
 `{ version, id, name, domain, registration, motd }`

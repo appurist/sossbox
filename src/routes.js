@@ -56,7 +56,7 @@ function handleError(err, request, reply) {
 }
 
 let packageVersion = require('../package.json').version;
-log.force('SOSSBox '+packageVersion);
+log.force('SOSSData '+packageVersion);
 // log.info('Node.js '+process.version);
 
 // This initializes the SOSS routes, and optionally user registration if store.registration is set.

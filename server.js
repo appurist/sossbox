@@ -141,7 +141,7 @@ async function serverInit() {
   store.listener.register(fastifyCORS, corsOptions);
   listener = store.listener;
 
-  // Initialize the SOSSBox server REST API endpoints.
+  // Initialize the SOSSData server REST API endpoints.
   if (store.storage) {
     routes.initRoutes(store);
   }
