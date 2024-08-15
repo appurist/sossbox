@@ -2,8 +2,8 @@
 // Require the framework and instantiate it
 const path = require('path')
 const fastify = require('fastify')
-const fastifyCORS = require('fastify-cors')
-const fastifyStatic = require('fastify-static');
+const fastifyCORS = require('@fastify/cors')
+const fastifyStatic = require('@fastify/static');
 const {SERVER_CFG, KEY_FILE, CRT_FILE} = require('./src/constants')
 
 const log = require('./src/log');
@@ -92,18 +92,10 @@ function onError(err) {
 }
 
 process.on('uncaughtException', onError);
-  
+
 function listenerStart(listener, id, host, port) {
   // Start the server listening.
-  listener.listen(port, host, (err) => {
-    if (err) {
-      log.error(err.message);
-      handleShutdown(1);
-    }
-
-    let port = listener.server.address().port;
-    log.info(`${id}: Now listening on port ${port}.`);
-  })
+  listener.listen({port, host});
 
   // dump routes at startup?
   if (process.argv.includes('--dump')) {
@@ -140,7 +132,7 @@ async function serverInit() {
   let logfile = store.logfile || `sossbox.log`
   log.init(loglevel, logfile);
 
-  store.options.logger = log;
+  store.options.logger = true;
   log.info(`Logging level '${loglevel}' for store '${store.id}' in ${logfile}`);
 
   // Save the fastify listener for easy access.
@@ -171,7 +163,7 @@ async function serverInit() {
     }
     store.listener.register(fastifyStatic, staticOptions);
 
-    // this will work with fastify-static and send /index.html
+    // this will work with @fastify/static and send /index.html
     store.listener.setNotFoundHandler((_, reply) => {
       reply.sendFile('index.html');
       //reply.redirect('/index.html');

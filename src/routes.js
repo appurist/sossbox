@@ -1,7 +1,7 @@
 const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
-const fastifyWebsocket = require('fastify-websocket');
+const fastifyWebsocket = require('@fastify/websocket');
 
 const assets = require('./assets');
 const auth = require('./auth');
@@ -66,17 +66,17 @@ function initRoutes(store) {
   listener.register(fastifyWebsocket);
 
   function makeUserResponse(user) {
-    let response = Object.assign({ }, user)    
+    let response = Object.assign({ }, user)
     response.administrator = (response.login === store.admin) || (response.uid === store.admin);
     return response;
   }
-    
+
   // Declare a route
   let prefix = (store.api === '/') ? '' : store.api;  // store '/' as an empty string for concatenation
   // log.info(`${store.id}: Enabling storage API ...`)
   listener.get(prefix+'/ping', async (request, reply) => {
     try {
-      reply.type(JSON_TYPE).send(JSON.stringify({name: store.id, version: packageVersion}));    
+      reply.type(JSON_TYPE).send(JSON.stringify({name: store.id, version: packageVersion}));
     } catch (err) {
       handleError(err, request, reply);
     }
@@ -97,7 +97,7 @@ function initRoutes(store) {
         response.motd = await store.fileGet(store.data, 'motd.md');
       }
       logRoute(request);
-      reply.type(JSON_TYPE).send(JSON.stringify(response));    
+      reply.type(JSON_TYPE).send(JSON.stringify(response));
     } catch (err) {
       if (err.code !== 'ENOENT') {
         log.error(`/status: ${err.message}\n${err.stack}`);
@@ -105,7 +105,7 @@ function initRoutes(store) {
       // otherwise reply without the motd
       logRoute(request);
       response.motd = ''; // make sure it's empty after an exception
-      reply.type(JSON_TYPE).send(JSON.stringify(response));    
+      reply.type(JSON_TYPE).send(JSON.stringify(response));
     }
   })
 
@@ -126,7 +126,7 @@ function initRoutes(store) {
     connection.socket.on('close', (code, reason) => {
       log.info("socket disconnected: "+JSON.stringify(code)+' '+JSON.stringify(reason));
     })
-  })  
+  })
 
   listener.get(prefix+'/users', (request, reply) => {
     if (!auth.isAdmin(request)) {
@@ -137,12 +137,12 @@ function initRoutes(store) {
     store.folderGet('users').then((response) => {
       if (response) {
         request.log.warn('/users request');
-        reply.type(JSON_TYPE).send(JSON.stringify(response));    
+        reply.type(JSON_TYPE).send(JSON.stringify(response));
       } else {
         request.log.warn('/users request, none found.');
         reply.code(404).send('users folder not found')
       }
-    }).catch((err) => { 
+    }).catch((err) => {
       handleError(err, request, reply);
     });
   })
@@ -158,7 +158,7 @@ function initRoutes(store) {
     let userRec = await store.userByUID(user.uid, "meta");
     request.log.info({req: request}, 'route handler');
     let response = makeUserResponse(userRec.user);
-    reply.type(JSON_TYPE).send(JSON.stringify(response));    
+    reply.type(JSON_TYPE).send(JSON.stringify(response));
   })
 
   // Same as /users/:myID but with an implicit ID
@@ -174,7 +174,7 @@ function initRoutes(store) {
     meta.user = Object.assign({}, meta.user, request.body);
     await store.userDocReplace(user, '', "meta", meta);
     request.log.info('/profile PUT');
-    reply.type(JSON_TYPE).send(JSON.stringify(meta.user));    
+    reply.type(JSON_TYPE).send(JSON.stringify(meta.user));
   })
 
   // This is for a pre-check on the user registration form, to verify that the proposed login ID is available.
@@ -187,7 +187,7 @@ function initRoutes(store) {
         reply.code(200).send(`That login ID ('${name}') is available.`);
       }
       logRoute(request);
-    }).catch((err) => { 
+    }).catch((err) => {
       handleError(err, request, reply);
     });
   })
@@ -207,9 +207,9 @@ function initRoutes(store) {
     }
     store.userByLogin(login).then((userRec) => {
       let response = makeUserResponse(userRec.user);
-      reply.type(JSON_TYPE).send(JSON.stringify(response));    
+      reply.type(JSON_TYPE).send(JSON.stringify(response));
       logRoute(request);
-    }).catch((err) => { 
+    }).catch((err) => {
       handleError(err, request, reply);
     });
   })
@@ -248,19 +248,19 @@ function initRoutes(store) {
           store.fileGet('.', 'motd.md').then(motd => {
             response.motd = motd;
             request.log.info('User registration: successful.');
-            reply.type(JSON_TYPE).send(JSON.stringify(response));    
+            reply.type(JSON_TYPE).send(JSON.stringify(response));
           })
           .catch(()=> {
             // This shouldn't be factored in a fall-thru with the above since the above is async, needs to work like an else
             request.log.error('User registration: failed.');
-            reply.type(JSON_TYPE).send(JSON.stringify(response));    
+            reply.type(JSON_TYPE).send(JSON.stringify(response));
           });
         }).catch((err) => {
           request.log.error(`User registration failed: ${err.message}`);
           reply.code(401).send('Registration failed.');
         });
       }
-    }).catch(err => { 
+    }).catch(err => {
       handleError(err, request, reply);
       return false
     });
@@ -281,9 +281,9 @@ function initRoutes(store) {
     }
     store.userDelete(uid).then((response) => {
       request.log.info('User delete complete.');
-      reply.type(JSON_TYPE).send(JSON.stringify(response));    
+      reply.type(JSON_TYPE).send(JSON.stringify(response));
       return;
-    }).catch((err) => { 
+    }).catch((err) => {
       handleError(err, request, reply);
     });
   });
@@ -311,7 +311,7 @@ function initRoutes(store) {
         response.motd = motd;
       }).catch(()=> {});
       request.log.info(`User '${userRec.user.login}' has logged in.`);
-      reply.type(JSON_TYPE).send(JSON.stringify(response));    
+      reply.type(JSON_TYPE).send(JSON.stringify(response));
     }).catch((err) => {
       request.log.warn('Authentication failed:',err);
       reply.code(401).send('Authentication failed.');
@@ -328,7 +328,7 @@ function initRoutes(store) {
 
     let response = { message: 'You have been logged out.', result: 'OK' };
     request.log.info(`User '${user.login}' has logged out.`);
-    reply.type(JSON_TYPE).send(JSON.stringify(response));    
+    reply.type(JSON_TYPE).send(JSON.stringify(response));
   });
 
   listener.get(prefix+'/projects', async (request, reply) => {
@@ -359,8 +359,8 @@ function initRoutes(store) {
 
     let id = request.params.id;
     store.userDocGet(user.uid, 'projects', id).then(response => {
-      reply.type(JSON_TYPE).send(JSON.stringify(response));    
-    }).catch((err) => { 
+      reply.type(JSON_TYPE).send(JSON.stringify(response));
+    }).catch((err) => {
       handleError(err, request, reply);
     });
   })
@@ -381,7 +381,7 @@ function initRoutes(store) {
     store.userDocCreate(user.uid, 'projects', uid, proj)
     .then(response => {
       reply.type(JSON_TYPE).send(JSON.stringify(response));
-    }).catch(err => { 
+    }).catch(err => {
       handleError(err, request, reply);
     });
   })
@@ -399,7 +399,7 @@ function initRoutes(store) {
       request.log.info("Project deleted.");
       reply.type(JSON_TYPE).send(JSON.stringify(response));
       return;
-    }).catch((err) => { 
+    }).catch((err) => {
       handleError(err, request, reply);
     });
   });

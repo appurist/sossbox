@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const log = require('./log');
 
 function verifyToken(token, secret) {
   if (!token) {
@@ -40,7 +41,7 @@ function getAuth(request, secret) {
   request.token = token;
   return token;
 }
-  
+
 function isAdmin(request) {
   let user = getAuth(request);
   return user && user.administrator;
