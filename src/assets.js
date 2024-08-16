@@ -1,6 +1,6 @@
 const path = require('path');
-const multer = require('fastify-multer') // or import multer from 'fastify-multer'
 const uuid = require('uuid-random');
+const multer = require('@koa/multer');
 
 const log = require('./log');
 const auth = require('./auth');
@@ -17,8 +17,6 @@ function logRoute(req, err) {
 }
 
 function initRoutes(store) {
-  let listener = store.listener;
-  listener.register(multer.contentParser)
 
   let prefix = (store.api === '/') ? '' : store.api;  // store '/' as an empty string for concatenation
 

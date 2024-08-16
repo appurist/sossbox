@@ -122,25 +122,25 @@ function initRoutes(store) {
   })
 
   // support the websocket
-  listener.get(prefix+'/updates', { websocket: true }, (connection) => {
-    log.info("socket connected.");
-    connection.socket.on('message', (message) => {
-      if (message.startsWith('user,')) {
-        log.info("socket message: user,***");
-      } else {
-        log.info("socket message: "+JSON.stringify(message));
-      }
-      connection.socket.send('{ "message": "none"}');
-    })
-    connection.socket.on('open', (connection, ev) => {
-      log.info("socket connected: "+JSON.stringify(connection)+' '+JSON.stringify(ev));
-    })
-    connection.socket.on('close', (code, reason) => {
-      log.info("socket disconnected: "+JSON.stringify(code)+' '+JSON.stringify(reason));
-    })
-  })
+  // router.get(prefix + '/updates', (connection) => { // { websocket: true },
+  //   log.info("socket connected.");
+  //   connection.socket.on('message', (message) => {
+  //     if (message.startsWith('user,')) {
+  //       log.info("socket message: user,***");
+  //     } else {
+  //       log.info("socket message: "+JSON.stringify(message));
+  //     }
+  //     connection.socket.send('{ "message": "none"}');
+  //   })
+  //   connection.socket.on('open', (connection, ev) => {
+  //     log.info("socket connected: "+JSON.stringify(connection)+' '+JSON.stringify(ev));
+  //   })
+  //   connection.socket.on('close', (code, reason) => {
+  //     log.info("socket disconnected: "+JSON.stringify(code)+' '+JSON.stringify(reason));
+  //   })
+  // })
 
-  listener.get(prefix+'/users', (request, reply) => {
+  router.get(prefix+'/users', (request, reply) => {
     if (!auth.isAdmin(request)) {
       logRoute(request);
       reply.code(403).send('Forbidden: user is not authorized.');
