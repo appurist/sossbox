@@ -2,15 +2,11 @@ const uuid = require('uuid-random');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 
-const Router = require('@koa/router');
-
 const assets = require('./assets');
 const auth = require('./auth');
 const log = require('./log');
 
 const JSON_TYPE = 'application/json; charset=utf-8';
-
-const router = new Router();
 
 function logRoute(req, err) {
   req.log.info({req, err}, 'route handler');
@@ -63,9 +59,7 @@ log.force('SOSSData '+packageVersion);
 // log.info('Node.js '+process.version);
 
 // This initializes the SOSS routes, and optionally user registration if store.registration is set.
-function initRoutes(store) {
-  let listener = store.listener;
-
+function initRoutes(router, store) {
   function makeUserResponse(user) {
     let response = Object.assign({ }, user)
     response.administrator = (response.login === store.admin) || (response.uid === store.admin);
@@ -91,7 +85,7 @@ function initRoutes(store) {
     };
     ctx.body = JSON.stringify(response);
   })
-  listener.get(prefix+'/status', async (request, reply) => {
+  router.get(prefix+'/status', async (request, reply) => {
     let response = {
       version: packageVersion,
       id: store.id,
@@ -160,7 +154,7 @@ function initRoutes(store) {
   })
 
   // Same as /users/:myID but with an implicit ID
-  listener.get(prefix+'/profile', async (request, reply) => {
+  router.get(prefix+'/profile', async (request, reply) => {
     let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn({req: request}, '/profile request, not authorized.');
@@ -174,7 +168,7 @@ function initRoutes(store) {
   })
 
   // Same as /users/:myID but with an implicit ID
-  listener.put(prefix+'/profile', async (request, reply) => {
+  router.put(prefix+'/profile', async (request, reply) => {
     let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn('/profile request, not authorized');
@@ -190,7 +184,7 @@ function initRoutes(store) {
   })
 
   // This is for a pre-check on the user registration form, to verify that the proposed login ID is available.
-  listener.head(prefix+'/users/:loginName', (request, reply) => {
+  router.head(prefix+'/users/:loginName', (request, reply) => {
     let name = request.params.loginName;
     store.loginExists(name).then((response) => {
       if (response) {
@@ -204,7 +198,7 @@ function initRoutes(store) {
     });
   })
 
-  listener.get(prefix+'/users/:loginName', (request, reply) => {
+  router.get(prefix+'/users/:loginName', (request, reply) => {
     let user = auth.getAuth(request, store.secret);
     if (!user) {
       reply.code(401).send('Not authorized.');
@@ -227,7 +221,7 @@ function initRoutes(store) {
   })
 
   // This is user add (a.k.a. signup or registration)
-  listener.post(prefix+'/users', (request, reply) => {
+  router.post(prefix+'/users', (request, reply) => {
     if (!store.registration) {
       if (!store.registration) {
         request.log.warn('User registration is disabled.');
@@ -278,7 +272,7 @@ function initRoutes(store) {
     });
   })
 
-  listener.delete(prefix+'/users/:uid', (request, reply) => {
+  router.delete(prefix+'/users/:uid', (request, reply) => {
     let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn('User delete, not authorized.');
@@ -300,7 +294,7 @@ function initRoutes(store) {
     });
   });
 
-  listener.post(prefix+'/login', (request, reply) => {
+  router.post(prefix+'/login', (request, reply) => {
     if (!store.secret) {
       request.log.error('Login failed, secret is not set.');
       log.error(`${store.id}: secret is not set.`);
@@ -330,7 +324,7 @@ function initRoutes(store) {
     });
   });
 
-  listener.post(prefix+'/logout', (request, reply) => {
+  router.post(prefix+'/logout', (request, reply) => {
     let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn("Authorization error during logout.");
@@ -343,7 +337,7 @@ function initRoutes(store) {
     reply.type(JSON_TYPE).send(JSON.stringify(response));
   });
 
-  listener.get(prefix+'/projects', async (request, reply) => {
+  router.get(prefix+'/projects', async (request, reply) => {
     let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn("Projects list: Not authorized.");
@@ -361,7 +355,7 @@ function initRoutes(store) {
     });
   })
 
-  listener.get(prefix+'/projects/:id', async (request, reply) => {
+  router.get(prefix+'/projects/:id', async (request, reply) => {
     let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn("Project info: Not authorized.");
@@ -377,7 +371,7 @@ function initRoutes(store) {
     });
   })
 
-  listener.post(prefix+'/projects', async (request, reply) => {
+  router.post(prefix+'/projects', async (request, reply) => {
     let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn("Project POST: not authorized.");
@@ -398,7 +392,7 @@ function initRoutes(store) {
     });
   })
 
-  listener.delete(prefix+'/projects/:uid', async (request, reply) => {
+  router.delete(prefix+'/projects/:uid', async (request, reply) => {
     let user = auth.getAuth(request, store.secret);
     if (!user) {
       request.log.warn("Project delete: not authorized.");
@@ -416,7 +410,7 @@ function initRoutes(store) {
     });
   });
 
-  assets.initRoutes(store);
+  assets.initRoutes(router, store);
 }
 
 module.exports = { initRoutes };

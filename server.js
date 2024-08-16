@@ -3,6 +3,7 @@
 const path = require('node:path')
 const Koa = require("koa")
 const serve = require("koa-static")
+const Router = require('@koa/router');
 
 const {SERVER_CFG, KEY_FILE, CRT_FILE} = require('./src/constants')
 
@@ -14,7 +15,7 @@ const routes = require('./src/routes')
 // read .env and .env.defaults
 require('dotenv-defaults/config');
 
-let listener = null;
+let app;
 let store = null;
 
 let corsOptions = { origin: true };
@@ -26,9 +27,9 @@ const PIDFILE = path.join(process.cwd(),'sossdata.pid')
 let pid = null;  // the npid instance
 
 function handleShutdown(rc) {
-  if (listener) {
-    log.info(`Closing main listener...`);
-    listener.close();
+  if (app) {
+    log.info(`Closing main app listener...`);
+    app.close();
   }
   if (rc !== 0)
     log.error(`Process exit: ${rc}`);
@@ -93,18 +94,6 @@ function onError(err) {
 
 process.on('uncaughtException', onError);
 
-function listenerStart(listener, id, host, port) {
-  // Start the server listening.
-  listener.listen({port, host});
-  log.info(`Server '${id}' listening on port ${port} ...`);
-
-  // dump routes at startup?
-  if (process.argv.includes('--dump')) {
-    log.warn(`Routes for '${id}'on port ${port}:`)
-    listener.ready(() => { log.info(listener.printRoutes()) })
-  }
-}
-
 let rootFolder = process.cwd();
 
 // Returns the fastify instance on success.
@@ -136,19 +125,16 @@ async function serverInit() {
   store.options.logger = true;
   log.info(`Logging level '${loglevel}' for store '${store.id}' in ${logfile}`);
 
-  // Save the fastify listener for easy access.
-  // store.listener = fastify(store.options);
-  // store.listener.register(fastifyCORS, corsOptions);
-  // listener = store.listener;
-
   // Initialize the Koa server.
   const app = new Koa();
+  let router = new Router();
+
   app.use(serve("public"));
   // app.use(serve(path.join(__dirname, '/public')))
 
   // Initialize the SOSSData server REST API endpoints.
   if (store.storage) {
-    routes.initRoutes(store);
+    routes.initRoutes(router, store);
   }
 
   let port = store.port || (store.options.https ? 443 : 80);
@@ -168,27 +154,31 @@ async function serverInit() {
       staticOptions.prefix = store.api;
     }
 
-    // store.listener.register(fastifyStatic, staticOptions);
-    app.listen(port, host);
-
-    // this will work with @fastify/static and send /index.html
-    // store.listener.setNotFoundHandler((_, reply) => {
-    //   reply.sendFile('index.html');
-    //   //reply.redirect('/index.html');
-    // })
+    // appStart(app, store.id, store.host, store.port);
   } else {
-    store.listener.get('/api', (_, reply) => {
+    app.get('/api', (_, reply) => {
       reply.send('You have reached the API server for '+name)
     });
   }
 
   // Actually start listening on the port now.
   try {
-    listenerStart(listener, id, host, port);
+    app.use(router.routes())
+    app.use(router.allowedMethods());
+    // Start the server listening.
+    app.listen({ port, host });
+    log.info(`Server '${id}' listening on port ${port} ...`);
+
+    // dump routes at startup?
+    if (process.argv.includes('--dump')) {
+      log.warn(`Routes for '${id}'on port ${port}:`)
+      app.ready(() => { log.info(app.printRoutes()) })
+    }
+
   } catch (err) {
     log.error(err.message)
   }
-  return listener;
+  return app;
 }
 
 // Mainline / top-level async function invocation.
