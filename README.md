@@ -1,12 +1,12 @@
-# SOSSBox
+# SOSSData
 A simple online storage server.
 
-<img src="public/logo.png" alt="SOSSBox Server Logo" style="zoom:75%;" />
+<img src="public/assets/logo.png" alt="SOSSData Server Logo" style="zoom:75%;" />
 
 ## NEW PROJECT
 This is a new project under active development and changing frequently. Documentation for use is not yet available, but will be following soon.
 
-It may be possible to use a SOSSBox server for static hosting after looking at the `sossdata.cfg` file, however the routes of the REST API are not documented (but can be found in the `routes.js` file).
+It may be possible to use a SOSSData server for static hosting after looking at the `sossdata.cfg` file, however the routes of the REST API are not documented (but can be found in the `routes.js` file).
 
 ## SOSSDATA SERVER CONFIGURATION
 
@@ -16,7 +16,7 @@ Binary executables are attached to each release in [releases](https://github.com
 
 To start a new server, simply run the `sossdata` server executable. There are no parameters or options, these are all configured in the `sossdata.cfg` file.
 
-Standard environment variables can also be used for most of the configuration options, in particular these options and their defaults in parentheses: `PORT` (if present) or `SOSSDATA_PORT` (otherwise 443 or 80 depending on `ssl` subfolder), `SOSSDATA_HOST` ('0.0.0.0'), `SOSSDATA_PREFIX` (/), `SOSSDATA_PUBLIC` ('public'), `SOSSDATA_DATA` ('data'), `SOSSDATA_STORAGE` (true), `SOSSDATA_REGISTRATION` (true), `SOSSDATA_SECRET` ('secret'), `SOSSDATA_ID` ('sossdata'), `SOSSDATA_NAME` ('SOSSBox Server').
+Standard environment variables can also be used for most of the configuration options, in particular these options and their defaults in parentheses: `PORT` (if present) or `SOSSDATA_PORT` (otherwise 443 or 80 depending on `ssl` subfolder), `SOSSDATA_HOST` ('0.0.0.0'), `SOSSDATA_PREFIX` (/), `SOSSDATA_PUBLIC` ('public'), `SOSSDATA_DATA` ('data'), `SOSSDATA_STORAGE` (true), `SOSSDATA_REGISTRATION` (true), `SOSSDATA_SECRET` ('secret'), `SOSSDATA_ID` ('sossdata'), `SOSSDATA_NAME` ('SOSSData Server').
 
 The only *required* field is the `SOSSDATA_SECRET`, which is used to encode the JSON Web Token (JWT) tokens provided in response to a login request, but ideally you should also provide a custom `SOSSDATA_ID` (e.g. 'myserver') and `SOSSDATA_NAME` ("My Server").
 

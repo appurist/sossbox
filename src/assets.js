@@ -1,6 +1,6 @@
 const path = require('path');
-const multer = require('fastify-multer') // or import multer from 'fastify-multer'
 const uuid = require('uuid-random');
+const multer = require('@koa/multer');
 
 const log = require('./log');
 const auth = require('./auth');
@@ -16,15 +16,12 @@ function logRoute(req, err) {
   req.log.info({req, err}, 'route handler');
 }
 
-function initRoutes(store) {
-  let listener = store.listener;
-  listener.register(multer.contentParser)
-
+function initRoutes(router, store) {
   let prefix = (store.api === '/') ? '' : store.api;  // store '/' as an empty string for concatenation
 
   var diskStorage = multer.diskStorage({
     destination: function (request, file, cb) {
-      let user = auth.getAuth(request, store.secret);      
+      let user = auth.getAuth(request, store.secret);
       if (user) {
         let folder = store.userFolder(user.uid, 'assets')
         cb(null, folder);
@@ -40,12 +37,13 @@ function initRoutes(store) {
       cb(null, fn + ext);
     }
   })
-  
+
   const limits = { fileSize: MAX_UPLOAD, files: 1 };
   const upload = multer({ storage: diskStorage, limits });
 
-  // listener.post('/assets', handleSingleUpload);
-  listener.post(prefix+'/assets', { preHandler: upload.single('upload_file') }, async (request, reply) => {
+  // router.post('/assets', handleSingleUpload);
+  // router.post(prefix+'/assets', { preHandler: upload.single('upload_file') }, async (request, reply) => {
+  router.post(prefix + '/assets', async (request, reply) => {
     // request.body will hold the text fields, if there were any
     // request.file is the upload metadata: {
     //   destination:'./uploads'
@@ -90,7 +88,7 @@ function initRoutes(store) {
     reply.type(JSON_TYPE).send(meta);
   });
 
-  listener.get(prefix+'/assets/:id', async (request, reply) => {
+  router.get(prefix+'/assets/:id', async (request, reply) => {
     try {
       let which = request.params.id;
       let ext = path.extname(which);
@@ -122,12 +120,12 @@ function initRoutes(store) {
       if (err.code !== 'ENOENT') {
         log.error(`/asset: ${err.message}\n${err.stack}`);
       }
-      reply.type(JSON_TYPE).send(JSON.stringify(err));    
+      reply.type(JSON_TYPE).send(JSON.stringify(err));
       logRoute(request);
     }
   });
 
-  listener.delete(prefix+'/assets/:id', async (request, reply) => {
+  router.delete(prefix+'/assets/:id', async (request, reply) => {
     try {
       let which = request.params.id;
       let ext = path.extname(which);
@@ -159,7 +157,7 @@ function initRoutes(store) {
       if (err.code !== 'ENOENT') {
         log.error(`/asset: ${err.message}\n${err.stack}`);
       }
-      reply.type(JSON_TYPE).send(JSON.stringify(err));    
+      reply.type(JSON_TYPE).send(JSON.stringify(err));
       logRoute(request);
     }
   });

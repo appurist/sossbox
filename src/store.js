@@ -26,7 +26,7 @@ class Store {
     this.logfile = envGet('LOGFILE', 'sossdata.log');
     // the default identity
     this.id = envGet('ID', 'sossdata');
-    this.name = envGet('NAME', 'SOSSBox');
+    this.name = envGet('NAME', 'SOSSData');
   }
 
   // Separate init function from constructor to separate async calls.
