@@ -17,7 +17,7 @@ router.get('/api/:arg', (ctx) => {
 });
 
 app
-  .use(router.routes());
+  .use(router.routes())
   .use(router.allowedMethods());
 
 app.listen(3000);
