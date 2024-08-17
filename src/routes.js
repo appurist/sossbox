@@ -29,12 +29,10 @@ function handleError(err, request, reply) {
     let details = result.responseContent.errors[0];
     let msg = `error ${result.statusCode} on ${result.method}, ${details.code}: ${details.description}`;
     log.error(msg);
-    request.log.error(msg);
     if (reply) reply.code(result.statusCode).send(details.description);
   } else {
     let msg = `error ${result.statusCode} on ${result.method}:`;
     log.error(msg);
-    request.log.error(msg);
     let firstCode = null;
     let firstText = null;
     for (let details of result.responseContent.errors) {
@@ -69,11 +67,11 @@ function initRoutes(router, store) {
   // Declare a route
   let prefix = (store.api === '/') ? '' : store.api;  // store '/' as an empty string for concatenation
   // log.info(`${store.id}: Enabling storage API ...`)
-  router.get(prefix + '/ping', (ctx, next) => {
+  router.get(prefix + '/ping', (ctx) => {
     ctx.type = JSON_TYPE;
     ctx.body = JSON.stringify({name: store.id, version: packageVersion});
   })
-  router.get(prefix + '/status', (ctx, next) => {
+  router.get(prefix + '/status', (ctx) => {
     ctx.type = JSON_TYPE;
     let response = {
       version: packageVersion,
@@ -85,7 +83,7 @@ function initRoutes(router, store) {
     };
     ctx.body = JSON.stringify(response);
   })
-  router.get(prefix+'/status', async (request, reply) => {
+  router.get(prefix+'/status', async (ctx) => {
     let response = {
       version: packageVersion,
       id: store.id,
@@ -96,22 +94,24 @@ function initRoutes(router, store) {
     };
     try {
       ctx.type = JSON_TYPE;
-      auth.getAuth(request, store.secret); // ignore the optional result, we're just updating the request for logging
+      auth.getAuth(ctx.request, store.secret); // ignore the optional result, we're just updating the request for logging
 
       if (store.data) {
         response.motd = await store.fileGet(store.data, 'motd.md');
       }
-      logRoute(request);
+      logRoute(ctx.request);
 
-      reply.type(JSON_TYPE).send(JSON.stringify(response));
+      ctx.type = JSON_TYPE;
+      ctx.body = JSON.stringify(response);
     } catch (err) {
       if (err.code !== 'ENOENT') {
         log.error(`/status: ${err.message}\n${err.stack}`);
       }
       // otherwise reply without the motd
-      logRoute(request);
+      logRoute(ctx.request);
       response.motd = ''; // make sure it's empty after an exception
-      reply.type(JSON_TYPE).send(JSON.stringify(response));
+      ctx.type = JSON_TYPE;
+      ctx.body = JSON.stringify(response);
     }
   })
 
@@ -134,112 +134,126 @@ function initRoutes(router, store) {
   //   })
   // })
 
-  router.get(prefix+'/users', (request, reply) => {
-    if (!auth.isAdmin(request)) {
-      logRoute(request);
-      reply.code(403).send('Forbidden: user is not authorized.');
+  router.get(prefix+'/users', (ctx) => {
+    if (!auth.isAdmin(ctx.request)) {
+      logRoute(ctx.request);
+      ctx.code = 403;
+      ctx.body = JSON.stringify('Forbidden: user is not authorized.');
       return;
     }
     store.folderGet('users').then((response) => {
       if (response) {
-        request.log.warn('/users request');
-        reply.type(JSON_TYPE).send(JSON.stringify(response));
+        log.warn('/users request');
+        ctx.type = JSON_TYPE;
+        ctx.body = JSON.stringify(response);
       } else {
-        request.log.warn('/users request, none found.');
-        reply.code(404).send('users folder not found')
+        log.warn('/users request, none found.');
+        ctx.code = 404;
+        ctx.body = 'users folder not found';
       }
     }).catch((err) => {
-      handleError(err, request, reply);
+      handleError(err, ctx.request, ctx.reply);
     });
   })
 
   // Same as /users/:myID but with an implicit ID
-  router.get(prefix+'/profile', async (request, reply) => {
-    let user = auth.getAuth(request, store.secret);
+  router.get(prefix+'/profile', async (ctx) => {
+    let user = auth.getAuth(ctx.request, store.secret);
     if (!user) {
-      request.log.warn({req: request}, '/profile request, not authorized.');
-      reply.code(401).send('Not authorized.');
+      log.warn({req: ctx.request}, '/profile request, not authorized.');
+      ctx.code = 401;
+      ctx.body = JSON.stringify('Not authorized.');
       return;
     }
     let userRec = await store.userByUID(user.uid, "meta");
-    request.log.info({req: request}, 'route handler');
+    log.info({req: ctx.request}, 'route handler');
     let response = makeUserResponse(userRec.user);
-    reply.type(JSON_TYPE).send(JSON.stringify(response));
+    ctx.type = JSON_TYPE;
+    ctx.body = JSON.stringify(response);
   })
 
   // Same as /users/:myID but with an implicit ID
-  router.put(prefix+'/profile', async (request, reply) => {
-    let user = auth.getAuth(request, store.secret);
+  router.put(prefix+'/profile', async (ctx) => {
+    let user = auth.getAuth(ctx.request, store.secret);
     if (!user) {
-      request.log.warn('/profile request, not authorized');
-      reply.code(401).send('Not authorized.');
+      log.warn('/profile request, not authorized');
+      ctx.code = 401;
+      ctx.body = 'Not authorized.';
       return;
     }
     // TODO: This needs to merge the payload with the current profile data.
     let meta = store.userByUID(user.uid, "meta");
-    meta.user = Object.assign({}, meta.user, request.body);
+    meta.user = Object.assign({}, meta.user, ctx.request.body);
     await store.userDocReplace(user, '', "meta", meta);
-    request.log.info('/profile PUT');
-    reply.type(JSON_TYPE).send(JSON.stringify(meta.user));
+    log.info('/profile PUT');
+    ctx.type = JSON_TYPE;
+    ctx.body = JSON.stringify(meta.user);
   })
 
   // This is for a pre-check on the user registration form, to verify that the proposed login ID is available.
-  router.head(prefix+'/users/:loginName', (request, reply) => {
-    let name = request.params.loginName;
+  router.head(prefix+'/users/:loginName', (ctx) => {
+    let name = ctx.params.loginName;
     store.loginExists(name).then((response) => {
       if (response) {
-        reply.code(409).send(`That login ID ('${name}') is not available. Please choose another.`);
+        ctx.code = 409;
+        ctx.body = `That login ID ('${name}') is not available. Please choose another.`;
       } else {
-        reply.code(200).send(`That login ID ('${name}') is available.`);
+        ctx.code = 200;
+        ctx.body = `That login ID ('${name}') is available.`;
       }
-      logRoute(request);
+      logRoute(ctx.request);
     }).catch((err) => {
-      handleError(err, request, reply);
+      handleError(err, ctx.request, ctx.reply);
     });
   })
 
-  router.get(prefix+'/users/:loginName', (request, reply) => {
-    let user = auth.getAuth(request, store.secret);
+  router.get(prefix + '/users/:loginName', (ctx) => {
+    let user = auth.getAuth(ctx.request, store.secret);
     if (!user) {
-      reply.code(401).send('Not authorized.');
-      logRoute(request);
+      ctx.code = 401;
+      ctx.body = 'Not authorized.';
+      logRoute(ctx.request);
       return;
     }
-    let login = request.params.loginName;
-    if ((login !== user.login) && !auth.isAdmin(request)) {
-      reply.code(403).send('Forbidden: user is not authorized.');
-      logRoute(request);
+    let login = ctx.params.loginName;
+    if ((login !== user.login) && !auth.isAdmin(ctx.request)) {
+      ctx.code = 403;
+      ctx.body = 'Forbidden: user is not authorized.';
+      logRoute(ctx.request);
       return;
     }
     store.userByLogin(login).then((userRec) => {
       let response = makeUserResponse(userRec.user);
-      reply.type(JSON_TYPE).send(JSON.stringify(response));
-      logRoute(request);
+      ctx.type = JSON_TYPE;
+      ctx.body = JSON.stringify(response);
+      logRoute(ctx.request);
     }).catch((err) => {
-      handleError(err, request, reply);
+      handleError(err, ctx.request, ctx.reply);
     });
   })
 
   // This is user add (a.k.a. signup or registration)
-  router.post(prefix+'/users', (request, reply) => {
+  router.post(prefix + '/users', (ctx) => {
     if (!store.registration) {
       if (!store.registration) {
-        request.log.warn('User registration is disabled.');
-        reply.code(405).send('New user registration is disabled.');
+        log.warn('User registration is disabled.');
+        ctx.code = 405;
+        ctx.body = 'New user registration is disabled.';
         return false;
       }
     }
 
     let uid = uuid();
-    let credentials = { hash: md5(request.body.password) };
-    let user = Object.assign({ uid }, request.body);
+    let credentials = { hash: md5(ctx.request.body.password) };
+    let user = Object.assign({ uid }, ctx.request.body);
     delete user.password; // don't store the original password. especially not in plain text
 
     let name = user.login;
     store.loginExists(name).then((response) => {
       if (response) {
-        request.log.warn('User registration: duplicate user.');
-        reply.code(409).send(`That login ID ('${name}') is not available. Please choose another.`);
+        log.warn('User registration: duplicate user.');
+        ctx.code = 409;
+        ctx.body = `That login ID ('${name}') is not available. Please choose another.`;
         return false;
       } else {
         // Next, create user with key from tenant storage.
@@ -253,60 +267,67 @@ function initRoutes(router, store) {
           // e.g. The token does not include itself, or the MOTD message.
           store.fileGet('.', 'motd.md').then(motd => {
             response.motd = motd;
-            request.log.info('User registration: successful.');
-            reply.type(JSON_TYPE).send(JSON.stringify(response));
+            log.info('User registration: successful.');
+            ctx.type = JSON_TYPE;
+            ctx.body = JSON.stringify(response);
           })
           .catch(()=> {
             // This shouldn't be factored in a fall-thru with the above since the above is async, needs to work like an else
-            request.log.error('User registration: failed.');
-            reply.type(JSON_TYPE).send(JSON.stringify(response));
+            log.error('User registration: failed.');
+            ctx.type = JSON_TYPE;
+            ctx.body = JSON.stringify(response);
           });
         }).catch((err) => {
-          request.log.error(`User registration failed: ${err.message}`);
-          reply.code(401).send('Registration failed.');
+          log.error(`User registration failed: ${err.message}`);
+          ctx.code = 401;
+          ctx.body = 'Registration failed.';
         });
       }
     }).catch(err => {
-      handleError(err, request, reply);
+      handleError(err, ctx.request, ctx.reply);
       return false
     });
   })
 
-  router.delete(prefix+'/users/:uid', (request, reply) => {
-    let user = auth.getAuth(request, store.secret);
+  router.delete(prefix+'/users/:uid', (ctx) => {
+    let user = auth.getAuth(ctx.request, store.secret);
     if (!user) {
-      request.log.warn('User delete, not authorized.');
-      reply.code(401).send('Not authorized.');
+      log.warn('User delete, not authorized.');
+      ctx.code = 401;
+      ctx.body = 'Not authorized.';
       return;
     }
-    let uid = request.params.uid;
-    if ((uid !== user.uid) && !auth.isAdmin(request)) {
-      request.log.warn('User delete, user not authorized.');
-      reply.code(403).send('Forbidden: user is not authorized.');
+    let uid = ctx.params.uid;
+    if ((uid !== user.uid) && !auth.isAdmin(ctx.request)) {
+      log.warn('User delete, user not authorized.');
+      ctx.code = 403;
+      ctx.body = 'Forbidden: user is not authorized.';
       return;
     }
     store.userDelete(uid).then((response) => {
-      request.log.info('User delete complete.');
-      reply.type(JSON_TYPE).send(JSON.stringify(response));
+      log.info('User delete complete.');
+      ctx.type = JSON_TYPE;
+      ctx.body = JSON.stringify(response);
       return;
     }).catch((err) => {
-      handleError(err, request, reply);
+      handleError(err, ctx.request, ctx.reply);
     });
   });
 
-  router.post(prefix+'/login', (request, reply) => {
+  router.post(prefix + '/login', (ctx) => {
     if (!store.secret) {
-      request.log.error('Login failed, secret is not set.');
+      log.error('Login failed, secret is not set.');
       log.error(`${store.id}: secret is not set.`);
       return false;
     }
 
-    store.userByLogin(request.body.login)
+    store.userByLogin(ctx.request.body.login)
     .then(userRec => {
-      let testhash = md5(request.body.password);
+      let testhash = md5(ctx.request.body.password);
       if (testhash !== userRec.credentials.hash) {
-        request.log.warn('Authentication failed, invalid password.');
-        reply.code(401).send('Authentication failed, invalid password.');
+        log.warn('Authentication failed, invalid password.');
+        ctx.code = 401;
+        ctx.body = 'Authentication failed, invalid password.';
         return;
       }
       let response = makeUserResponse(userRec.user);
@@ -316,65 +337,73 @@ function initRoutes(router, store) {
       store.fileGet('.', 'motd.md').then(motd => {
         response.motd = motd;
       }).catch(()=> {});
-      request.log.info(`User '${userRec.user.login}' has logged in.`);
-      reply.type(JSON_TYPE).send(JSON.stringify(response));
+      log.info(`User '${userRec.user.login}' has logged in.`);
+      ctx.type = JSON_TYPE;
+      ctx.body = JSON.stringify(response);
     }).catch((err) => {
-      request.log.warn('Authentication failed:',err);
-      reply.code(401).send('Authentication failed.');
+      log.warn('Authentication failed:',err);
+      ctx.code = 401;
+      ctx.body = 'Authentication failed.';
     });
   });
 
-  router.post(prefix+'/logout', (request, reply) => {
-    let user = auth.getAuth(request, store.secret);
+  router.post(prefix + '/logout', (ctx) => {
+    let user = auth.getAuth(ctx.request, store.secret);
     if (!user) {
-      request.log.warn("Authorization error during logout.");
-      reply.code(401).send('Not authorized.');
+      log.warn("Authorization error during logout.");
+      ctx.code(401).send('Not authorized.');
       return;
     }
 
     let response = { message: 'You have been logged out.', result: 'OK' };
-    request.log.info(`User '${user.login}' has logged out.`);
-    reply.type(JSON_TYPE).send(JSON.stringify(response));
+    log.info(`User '${user.login}' has logged out.`);
+    ctx.type = JSON_TYPE;
+    ctx.body = JSON.stringify(response);
   });
 
-  router.get(prefix+'/projects', async (request, reply) => {
-    let user = auth.getAuth(request, store.secret);
+  router.get(prefix + '/projects', async(ctx) => {
+    let user = auth.getAuth(ctx.request, store.secret);
     if (!user) {
-      request.log.warn("Projects list: Not authorized.");
-      reply.code(401).send('Not authorized.');
+      log.warn("Projects list: Not authorized.");
+      ctx.code = 401;
+      ctx.body = 'Not authorized.';
       return;
     }
 
     store.userListDocs(user.uid, 'projects').then((response) => {
       if (response) {
-        reply.type(JSON_TYPE).send(JSON.stringify(response));
+        ctx.type = JSON_TYPE;
+        ctx.body = JSON.stringify(response);
       } else {
-        request.log.warn("Projects list: unauthorized path.");
-        reply.code(401).send('Unauthorized path.');
+        log.warn("Projects list: unauthorized path.");
+        ctx.code = 401;
+        ctx.body = 'Unauthorized path.';
       }
     });
   })
 
-  router.get(prefix+'/projects/:id', async (request, reply) => {
-    let user = auth.getAuth(request, store.secret);
+  router.get(prefix + '/projects/:id', async(ctx) => {
+    let user = auth.getAuth(ctx.request, store.secret);
     if (!user) {
-      request.log.warn("Project info: Not authorized.");
-      reply.code(401).send('Not authorized.');
+      log.warn("Project info: Not authorized.");
+      ctx.code = 401;
+      ctx.body = 'Not authorized.';
       return;
     }
 
-    let id = request.params.id;
+    let id = ctx.request.params.id;
     store.userDocGet(user.uid, 'projects', id).then(response => {
-      reply.type(JSON_TYPE).send(JSON.stringify(response));
+      ctx.type = JSON_TYPE
+      ctx.body = JSON.stringify(response);
     }).catch((err) => {
-      handleError(err, request, reply);
+      handleError(err, ctx.request, ctx.reply);
     });
   })
 
   router.post(prefix+'/projects', async (request, reply) => {
     let user = auth.getAuth(request, store.secret);
     if (!user) {
-      request.log.warn("Project POST: not authorized.");
+      log.warn("Project POST: not authorized.");
       reply.code(401).send('Not authorized.');
       return;
     }
@@ -395,14 +424,14 @@ function initRoutes(router, store) {
   router.delete(prefix+'/projects/:uid', async (request, reply) => {
     let user = auth.getAuth(request, store.secret);
     if (!user) {
-      request.log.warn("Project delete: not authorized.");
+      log.warn("Project delete: not authorized.");
       reply.code(401).send('Not authorized.');
       return;
     }
 
     let uid = request.params.uid;
     store.userDocDelete(user.uid, 'projects', uid).then((response) => {
-      request.log.info("Project deleted.");
+      log.info("Project deleted.");
       reply.type(JSON_TYPE).send(JSON.stringify(response));
       return;
     }).catch((err) => {

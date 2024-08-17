@@ -43,7 +43,7 @@ function initRoutes(router, store) {
 
   // router.post('/assets', handleSingleUpload);
   // router.post(prefix+'/assets', { preHandler: upload.single('upload_file') }, async (request, reply) => {
-  router.post(prefix + '/assets', async (request, reply) => {
+  router.post(prefix + '/assets', async (ctx) => {
     // request.body will hold the text fields, if there were any
     // request.file is the upload metadata: {
     //   destination:'./uploads'
@@ -56,48 +56,52 @@ function initRoutes(router, store) {
     //   size:71627
     // }
 
-    if (!request.file) {
+    if (!ctx.request.file) {
       let err = new Error('Upload is missing file.');
       log.error("Asset Upload "+err);
-      reply.code(400).send(err.message);
+      ctx.code = 400
+      ctx.body = err.message;
       return;
     }
 
-    console.log(`Uploaded file: ${request.file.originalname} (${request.file.size}) -> ${request.file.path}`);
-    let user = auth.getAuth(request, store.secret);
+    console.log(`Uploaded file: ${ctx.request.file.originalname} (${ctx.request.file.size}) -> ${ctx.request.file.path}`);
+    let user = auth.getAuth(ctx.request, store.secret);
     if (!user) {
       // This can't really happen because the multer diskStorage instance above would have returned an error building the path.
       // But just in case the implementation changes, handle it.
-      await io.pathDelete(request.file.path);
-      reply.code(401).send('Not authorized.');
+      await io.pathDelete(ctx.request.file.path);
+      ctx.code = 401;
+      ctx.body = 'Not authorized.';
       return;
     }
-    let ext = path.extname(request.file.originalname);
-    let which = path.basename(request.file.path, ext);
+    let ext = path.extname(ctx.request.file.originalname);
+    let which = path.basename(ctx.request.file.path, ext);
     let meta = {
       id: which,
-      filename: request.file.filename,
-      originalname: request.file.originalname,
-      size: request.file.size,
-      mimetype: request.file.mimetype,
+      filename: ctx.request.file.filename,
+      originalname: ctx.request.file.originalname,
+      size: ctx.request.file.size,
+      mimetype: ctx.request.file.mimetype,
       uploaded: Date.now()
     };
     if (ext.toLowerCase() !== '.json') {
       await store.userDocCreate(user.uid, 'assets', which+'.json', meta);
     }
-    reply.type(JSON_TYPE).send(meta);
+    ctx.type = JSON_TYPE;
+    ctx.body = JSON.stringify(meta);
   });
 
-  router.get(prefix+'/assets/:id', async (request, reply) => {
+  router.get(prefix+'/assets/:id', async (ctx) => {
     try {
-      let which = request.params.id;
+      let which = ctx.params.id;
       let ext = path.extname(which);
       let isJSON = (ext === '.json') ? true : false;
       which = path.basename(which, ext);
 
-      let user = auth.getAuth(request, store.secret);
+      let user = auth.getAuth(ctx.request, store.secret);
       if (!user) {
-        reply.code(401).send('Not authorized.');
+        ctx.code = 401;
+        ctx.body = 'Not authorized.';
         return;
       }
       let who = user.uid;
@@ -105,41 +109,45 @@ function initRoutes(router, store) {
       let meta = await store.userDocGet(who, 'assets', which+'.json');
       ext = path.extname(meta.originalname);
       if (isJSON) {
-        reply.type(JSON_TYPE).send(meta);
-        logRoute(request);
+        ctx.type = JSON_TYPE;
+        ctx.body = JSON.stringify(meta);
+        logRoute(ctx.request);
         return;
       }
 
       let data = await io.fileGet(store.userFolder(who, 'assets'), which+ext, null);  // binary
       // reply.header('Content-disposition', 'attachment; filename=' + meta.originalname);
-      reply.header('Content-disposition', 'inline; filename=' + meta.originalname);
-      reply.type(meta.mimetype);
-      reply.send(data);
-      logRoute(request);
+      ctx.header['Content-disposition'] = 'inline; filename=' + meta.originalname;
+      ctx.type = meta.mimetype;
+      ctx.body = JSON.stringify(data);
+      logRoute(ctx.request);
     } catch (err) {
       if (err.code !== 'ENOENT') {
         log.error(`/asset: ${err.message}\n${err.stack}`);
       }
-      reply.type(JSON_TYPE).send(JSON.stringify(err));
-      logRoute(request);
+      ctx.type = JSON_TYPE;
+      ctx.body = JSON.stringify(err);
+      logRoute(ctx.request);
     }
   });
 
-  router.delete(prefix+'/assets/:id', async (request, reply) => {
+  router.delete(prefix+'/assets/:id', async (ctx) => {
     try {
-      let which = request.params.id;
+      let which = ctx.params.id;
       let ext = path.extname(which);
       which = path.basename(which, ext);
 
       if (ext !== '') {
-        reply.code(400).send('Asset UUID cannot have an extension.')
-        logRoute(request);
+        ctx.code = 400;
+        ctx.body = 'Asset UUID cannot have an extension.';
+        logRoute(ctx.request);
         return;
       }
 
-      let user = auth.getAuth(request, store.secret);
+      let user = auth.getAuth(ctx.request, store.secret);
       if (!user) {
-        reply.code(401).send('Not authorized.');
+        ctx.code = 401;
+        ctx.body = 'Not authorized.';
         return;
       }
       let who = user.uid;
@@ -151,14 +159,16 @@ function initRoutes(router, store) {
       let folder = store.userFolder(who, 'assets');
       await io.fileDelete(folder, which+ext);
       await io.fileDelete(folder, which+'.json');
-      reply.code(200).send('DELETED');
-      logRoute(request);
+      ctx.code = 200;
+      ctx.body = 'DELETED';
+      logRoute(ctx.request);
     } catch (err) {
       if (err.code !== 'ENOENT') {
         log.error(`/asset: ${err.message}\n${err.stack}`);
       }
-      reply.type(JSON_TYPE).send(JSON.stringify(err));
-      logRoute(request);
+      ctx.type = JSON_TYPE;
+      ctx.body = JSON.stringify(err);
+      logRoute(ctx.request);
     }
   });
 }
