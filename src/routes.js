@@ -69,11 +69,11 @@ function initRoutes(router, store) {
   // Declare a route
   let prefix = (store.api === '/') ? '' : store.api;  // store '/' as an empty string for concatenation
   // log.info(`${store.id}: Enabling storage API ...`)
-  router.get(prefix + '/ping', (ctx, next) => {
+  router.get(prefix + '/ping', (ctx) => {
     ctx.type = JSON_TYPE;
     ctx.body = JSON.stringify({name: store.id, version: packageVersion});
   })
-  router.get(prefix + '/status', (ctx, next) => {
+  router.get(prefix + '/status', (ctx) => {
     ctx.type = JSON_TYPE;
     let response = {
       version: packageVersion,

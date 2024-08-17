@@ -10,7 +10,7 @@ const router = new Router();
 app.use(serve("public"));
 app.use(serve(path.join(__dirname, '/public')))
 
-router.get('/api/:arg', (ctx, next) => {
+router.get('/api/:arg', (ctx) => {
   console.log("api path: "+ctx.path, ctx.params);
   // ctx.router available
   ctx.body = 'You have reached the API server at path: '+ctx.path;
